@@ -1,0 +1,2983 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Analizador Telemetría — Limpio (Energía + Combustible)</title>
+    <style>
+      :root {
+        --bg: #0b0f17;
+        --panel: #111826;
+        --ink: #e7eef7;
+        --muted: #9fb3c8;
+        --blue: #4ea1ff;
+        --orange: #ffd166;
+        --grid: #22314a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      }
+      .wrap {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px 32px;
+}
+
+      .card {
+        background: var(--panel);
+        border: 1px solid #1b2434;
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 14px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .col {
+        flex: 1 1 260px;
+        min-width: 260px;
+      }
+      label {
+        font-size: 12px;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+      input[type='file'] {
+        width: 100%;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #273246;
+        background: #0e1520;
+        color: #e7eef7;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #0c141f;
+        border: 1px solid #213148;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      .btn {
+        background: var(--blue);
+        border: none;
+        color: #001733;
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .btn.ghost {
+        background: #0e1623;
+        color: #cfe1fb;
+        border: 1px solid #203049;
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      canvas {
+        width: 100%;
+        height: 420px;
+        background: #0c121b;
+        border-radius: 12px;
+        border: 1px solid #1a2433;
+        display: block;
+      }
+      #brush {
+        height: 80px;
+        cursor: ew-resize;
+      }
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .tbl th,
+      .tbl td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #213148;
+        text-align: left;
+      }
+      .section-title {
+        font-size: 14px;
+        color: #c7d8ee;
+        margin: 8px 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Analizador Telemetría — Energía (kWh) + Combustible (L)</h1>
+
+      <div class="card">
+        <div class="row">
+          <div class="col">
+            <label
+              >Archivo <b>ENERGÍA</b> (XLSX/CSV). Fila 6: “Generador X”, fila 7:
+              encabezados, fila 8→ datos.</label
+            >
+            <input id="fileEnergy" type="file" accept=".xlsx,.xls,.csv" />
+          </div>
+          <div class="col">
+            <label
+              >Archivo <b>COMBUSTIBLE</b> (XLSX/CSV). Debe contener Date + Hora
+              + Volumen/Total (m³ → L).</label
+            >
+            <input id="fileFuel" type="file" accept=".xlsx,.xls,.csv" />
+          </div>
+          <div class="col">
+            <label>Series visibles</label>
+            <div class="row" style="gap: 8px">
+              <span class="badge"
+                ><input id="chkEnergy" type="checkbox" checked /> Energía
+                (kW)</span
+              >
+              <span class="badge"
+                ><input id="chkFuel" type="checkbox" checked /> Combustible
+                (L)</span
+              >
+              <span class="badge"
+                ><input id="chkTrend" type="checkbox" checked /> Tendencia
+                consumo (L/h)</span
+              >
+              <span class="badge"
+                ><input id="chkG1" type="checkbox" checked /> Generador 1</span
+              >
+              <span class="badge"
+                ><input id="chkG2" type="checkbox" checked /> Generador 2</span
+              >
+              <span class="badge"
+                ><input id="chkG3" type="checkbox" checked /> Generador 3</span
+              >
+            </div>
+            <div class="small">
+              Eje izquierdo: <b style="color: var(--blue)">kW</b>. Eje derecho:
+              <b style="color: var(--orange)">L</b>.
+            </div>
+          </div>
+        </div>
+        <div
+  class="row"
+  style="align-items: center; gap: 10px; margin-top: 8px; flex-wrap: nowrap;"
+>
+  <div style="display: flex; gap: 10px; align-items: center; flex: 0 0 auto;">
+    <button id="btnRender" class="btn">Procesar y graficar</button>
+    <button id="btnReset" class="btn ghost">Ver todo</button>
+    <span id="status" class="small"></span>
+  </div>
+<!-- 📸 Botón de captura de pantalla -->
+<div style="margin-top:10px;">
+<button id="btnCaptura"
+  style="background:#4ea1ff;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">
+  📸 Capturar pantalla
+</button>
+</div>
+
+  <!-- 🔹 Selector de rango de fechas a la derecha -->
+  <div
+    style="display: flex; gap: 8px; align-items: center; margin-left: auto;"
+  >
+    <label for="dateStart" class="small" style="white-space: nowrap;">Rango:</label>
+    <input
+      id="dateStart"
+      type="datetime-local"
+      style="padding:6px; border-radius:8px; border:1px solid #273246; background:#0e1520; color:#e7eef7;"
+    />
+    <input
+      id="dateEnd"
+      type="datetime-local"
+      style="padding:6px; border-radius:8px; border:1px solid #273246; background:#0e1520; color:#e7eef7;"
+    />
+    <button id="btnSetRange" class="btn" style="padding:8px 12px;">OK</button>
+  </div>
+</div>
+
+      </div>
+
+      <div class="card" style="position: relative">
+        <canvas id="chart" width="1100" height="420"></canvas>
+        <div class="small">
+          Zoom por rango: arrastra en el <b>brush</b> inferior. Doble clic en el
+          gráfico para ver todo.
+        </div>
+<!-- 🔹 Leyenda de colores -->
+<div id="legend" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; font-size:13px; color:#c7d8ee;">
+<span><span style="display:inline-block;width:14px;height:3px;background:#4ea1ff;margin-right:6px;"></span> Potencia activa (kW)</span>
+<span><span style="display:inline-block;width:14px;height:3px;background:#ffd166;margin-right:6px;"></span> Combustible (L)</span>
+<span><span style="display:inline-block;width:14px;height:3px;background:rgba(64,255,230,0.65);margin-right:6px;"></span> Tendencia (L/h)</span>
+<span><span style="display:inline-block;width:14px;height:3px;background:#9aff00;margin-right:6px;"></span> Generador 1 (kW)</span>
+<span><span style="display:inline-block;width:14px;height:3px;background:#7a5cff;margin-right:6px;"></span> Generador 2 (kW)</span>
+<span><span style="display:inline-block;width:14px;height:3px;background:#ff5c93;margin-right:6px;"></span> Generador 3 (kW)</span>
+</div>
+
+
+
+        <canvas
+          id="brush"
+          width="1100"
+          height="80"
+          style="margin-top: 6px"
+        ></canvas>
+      </div>
+
+      <div class="card">
+      <div class="section-title">Indicadores del rango visible</div>
+      <table class="tbl">
+        <tbody>
+          <tr>
+            <th>Inicio</th>
+            <td id="txtInicio">—</td>
+            <th>Fin</th>
+            <td id="txtFin">—</td>
+          </tr>
+    
+          <tr>
+            <th>⚡ Energía total (kWh)</th>
+            <td id="txtKWh">—</td>
+            <th>⛽ Litros consumidos (L)</th>
+            <td id="txtLitros">—</td>
+          </tr>
+    
+          <!-- 🔹 Generadores en una sola columna -->
+          <tr>
+          <th>Generadores (kWh)</th>
+          <td colspan="3" id="genSummary">
+            <div id="txtG1" style="margin-bottom: 3px; color:#9aff00;">
+              <b>Generador 1:</b> —
+            </div>
+            <div id="txtG2" style="margin-bottom: 3px; color:#7a5cff;">
+              <b>Generador 2:</b> —
+            </div>
+            <div id="txtG3" style="color:#ff5c93;">
+              <b>Generador 3:</b> —
+            </div>
+          </td>
+        </tr>
+    
+          <tr>
+            <th>🧮 Eficiencia (kWh/L)</th>
+            <td id="txtEff">—</td>
+            <th>⛽ Recargado (L)</th>
+            <td id="txtRec">—</td>
+          </tr>
+          <tr>
+            <th>⛽ Recargas detectadas</th>
+            <td id="txtRefCount">—</td>
+            <th>💧 Tasa de consumo (L/h)</th>
+            <td id="txtRate">—</td>
+          </tr>
+          <tr>
+            <th>📦 Volumen por recarga (L)</th>
+            <td id="txtRefList" colspan="3">—</td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+
+
+  </table>
+</div>
+<!-- ========================================== -->
+<!--  NUEVO: GRÁFICO DE CARGA EN KVA POR GENERADOR  -->
+<!-- ========================================== -->
+<section id="genLoadSection" class="card" style="margin-top:20px;">
+  <!-- 🔹 Carga dinámica de base de generadores -->
+<div style="margin-bottom:10px; display:flex; align-items:center; gap:16px; background:#111826; border-radius:10px; padding:8px 12px;">
+<div>
+  <label for="genFile" style="color:#9fb3c8; font-size:14px;">📂 Cargar base de generadores:</label>
+  <input type="file" id="genFile" accept=".xlsx,.csv" style="background:#0b0f17; color:#e7eef7; border:none; padding:4px 6px; border-radius:6px;">
+</div>
+<div>
+  <label for="pontonesSelect" style="color:#9fb3c8; font-size:14px;">🔹 Pontón:</label>
+  <select id="pontonesSelect" style="background:#0b0f17; color:#e7eef7; border:1px solid #22314a; border-radius:6px; padding:4px 6px; width:200px;">
+    <option value="">Seleccionar...</option>
+  </select>
+</div>
+</div>
+
+<h3 style="margin-bottom:8px;">Porcentaje de Carga por Generador (kVA)</h3>
+<table class="tbl" style="margin-bottom:10px;">
+<thead>
+  <tr>
+    <th>Generador</th>
+    <th>Capacidad Máx (kVA)</th>
+    <th>Factor de Potencia (FP)</th>
+    <th>Potencia Máx (kW)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="color:#9aff00;"><b>Generador 1</b></td>
+    <td><input id="g1Max" type="number" value="200" style="width:80px;"></td>
+    <td><input id="g1FP" type="number" value="0.8" step="0.01" style="width:60px;"></td>
+    <td id="g1kW">—</td>
+  </tr>
+  <tr>
+    <td style="color:#7a5cff;"><b>Generador 2</b></td>
+    <td><input id="g2Max" type="number" value="200" style="width:80px;"></td>
+    <td><input id="g2FP" type="number" value="0.8" step="0.01" style="width:60px;"></td>
+    <td id="g2kW">—</td>
+  </tr>
+  <tr>
+    <td style="color:#ff5c93;"><b>Generador 3</b></td>
+    <td><input id="g3Max" type="number" value="200" style="width:80px;"></td>
+    <td><input id="g3FP" type="number" value="0.8" step="0.01" style="width:60px;"></td>
+    <td id="g3kW">—</td>
+  </tr>
+</tbody>
+</table>
+
+
+<canvas id="chartLoad" width="1100" height="220" style="width:100%;height:220px;"></canvas>
+<div class="small">Curvas de porcentaje de carga (0–100 %) en función del tiempo, basadas en kVA.</div>
+<!-- ========================================== -->
+<!-- 🔹 INDICADORES DEL RANGO VISIBLE (GENERADORES) -->
+<!-- ========================================== -->
+<div id="genIndicators" class="tbl small" style="margin-top:10px;">
+<table class="tbl">
+  <thead>
+    <tr>
+      <th>Generador</th>
+      <th>% Máx</th>
+      <th>% Mín</th>
+      <th>% Prom</th>
+      <th>Horas de funcionamiento</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="color:#9aff00;"><b>G1</b></td>
+      <td id="g1MaxPct">—</td>
+      <td id="g1MinPct">—</td>
+      <td id="g1AvgPct">—</td>
+      <td id="g1Hours">—</td>
+    </tr>
+    <tr>
+      <td style="color:#7a5cff;"><b>G2</b></td>
+      <td id="g2MaxPct">—</td>
+      <td id="g2MinPct">—</td>
+      <td id="g2AvgPct">—</td>
+      <td id="g2Hours">—</td>
+    </tr>
+    <tr>
+      <td style="color:#ff5c93;"><b>G3</b></td>
+      <td id="g3MaxPct">—</td>
+      <td id="g3MinPct">—</td>
+      <td id="g3AvgPct">—</td>
+      <td id="g3Hours">—</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+</section>
+<!-- ============================================== -->
+<!-- 🔹 HISTOGRAMAS DE DISTRIBUCIÓN DE CARGA POR GENERADOR -->
+<!-- ============================================== -->
+<div class="card" style="margin-top:20px;">
+<h3 class="section-title">Distribución de Carga (mientras encendidos)</h3>
+
+<div id="histRow" 
+     style="display:flex;
+            justify-content:space-evenly;
+            align-items:flex-start;
+            gap:10px;
+            flex-wrap:wrap;
+            width:100%;">
+  <div style="flex:1;min-width:280px;max-width:33%;text-align:center;">
+    <canvas id="histG1" style="width:100%;height:auto;aspect-ratio:16/9;"></canvas>
+  </div>
+  <div style="flex:1;min-width:280px;max-width:33%;text-align:center;">
+    <canvas id="histG2" style="width:100%;height:auto;aspect-ratio:16/9;"></canvas>
+  </div>
+  <div style="flex:1;min-width:280px;max-width:33%;text-align:center;">
+    <canvas id="histG3" style="width:100%;height:auto;aspect-ratio:16/9;"></canvas>
+  </div>
+</div>
+</div>
+
+
+
+<!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
+<div class="card">
+
+    <!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
+<div class="card">
+<h3 class="section-title">Sistema de Alimentación</h3>
+<div class="row">
+  <div class="col">
+    <label>Archivo <b>ALIMENTACIÓN</b> (XLSX/CSV)</label>
+    <input id="fileFeed" type="file" accept=".xlsx,.xls,.csv" />
+  </div>
+  <div class="col" style="align-self:end;">
+    <button id="btnFeed" class="btn">Cargar y graficar</button>
+    <span id="feedStatus" class="small" style="margin-left:10px;"></span>
+
+  </div>
+</div>
+
+<div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+<span class="badge"><input id="chkFeedPower" type="checkbox"> Potencia activa (kW)</span>
+<span class="badge"><input id="chkFeedOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
+<span class="badge"><input id="chkFeedGens" type="checkbox" checked> Generadores activos</span>
+</div>
+
+<canvas id="chartFeed" width="1100" height="320" style="margin-top:10px;"></canvas>
+<div class="small">Curva de <b>potencia activa (kW)</b> del sistema de alimentación.</div>
+<!-- 🔹 Leyenda del Sistema de Alimentación -->
+<div id="legendFeed" style="margin-top:8px;"></div>
+
+<!-- 🔹 Indicadores avanzados del sistema de alimentación -->
+<table class="tbl" style="margin-top:10px;">
+<tbody>
+  <tr>
+    <th>Inicio</th><td id="feedInicio">—</td>
+    <th>Fin</th><td id="feedFin">—</td>
+  </tr>
+  <tr>
+    <th>⚡ Energía utilizada (kWh)</th><td id="feedKWh">—</td>
+    <th>🔋 Potencia promedio (kW)</th><td id="feedAvg">—</td>
+  </tr>
+  <tr>
+  <th>🔝 Potencia máxima</th><td id="feedMax">—</td>
+  <td colspan="2"></td>
+</tr>
+
+  <tr>
+    <th>🕒 Horas de uso totales</th><td id="feedHrsUse">—</td>
+    <th>⏳ Horas promedio por día</th><td id="feedHrsDay">—</td>
+  </tr>
+  <tr>
+    <th>📆 Días sin funcionamiento</th><td id="feedDaysOff">—</td>
+    <th>💡 Consumo diario promedio (kWh/día)</th><td id="feedDailyAvg">—</td>
+  </tr>
+  <tr>
+  <th>⛽ Consumo estimado (L)</th>
+  <td id="feedLitros" colspan="3">—</td>
+</tr>
+<tr>
+<th colspan="4" style="text-align:center;">🧩 Distribución por generador</th>
+</tr>
+<tr>
+<th>Generador 1</th><td id="feedG1hrs">—</td><td id="feedG1pct" colspan="2">—</td>
+</tr>
+<tr>
+<th>Generador 2</th><td id="feedG2hrs">—</td><td id="feedG2pct" colspan="2">—</td>
+</tr>
+<tr>
+<th>Generador 3</th><td id="feedG3hrs">—</td><td id="feedG3pct" colspan="2">—</td>
+</tr>
+
+
+</tbody>
+</table>
+
+
+</div>
+
+<!-- 🔹 Nuevo módulo: Sistema de Fotoperiodo -->
+<div class="card">
+<h3 class="section-title">Sistema de Fotoperiodo</h3>
+<div class="row">
+  <div class="col">
+    <label>Archivo <b>FOTOPERÍODO</b> (XLSX/CSV)</label>
+    <input id="filePhoto" type="file" accept=".xlsx,.xls,.csv" />
+  </div>
+  <div class="col" style="align-self:end;">
+    <button id="btnPhoto" class="btn">Cargar y graficar</button>
+    <span id="photoStatus" class="small" style="margin-left:10px;"></span>
+  </div>
+</div>
+
+<div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+  <span class="badge"><input id="chkPhotoPower" type="checkbox"> Potencia activa (kW)</span>
+  <span class="badge"><input id="chkPhotoOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
+  <span class="badge"><input id="chkPhotoGens" type="checkbox" checked> Generadores activos</span>
+</div>
+
+<canvas id="chartPhoto" width="1100" height="320" style="margin-top:10px;"></canvas>
+<div class="small">Curva de <b>potencia activa (kW)</b> del sistema de fotoperiodo.</div>
+
+<!-- 🔹 Leyenda del Sistema de Fotoperiodo -->
+<div id="legendPhoto" style="margin-top:8px;"></div>
+
+<!-- 🔹 Indicadores avanzados del sistema de fotoperiodo -->
+<table class="tbl" style="margin-top:10px;">
+  <tbody>
+    <tr>
+      <th>Inicio</th><td id="photoInicio">—</td>
+      <th>Fin</th><td id="photoFin">—</td>
+    </tr>
+    <tr>
+      <th>⚡ Energía utilizada (kWh)</th><td id="photoKWh">—</td>
+      <th>🔋 Potencia promedio (kW)</th><td id="photoAvg">—</td>
+    </tr>
+    <tr>
+      <th>🔝 Potencia máxima</th><td id="photoMax">—</td>
+      <td colspan="2"></td>
+    </tr>
+    <tr>
+      <th>🕒 Horas de uso totales</th><td id="photoHrsUse">—</td>
+      <th>⏳ Horas promedio de funcionamiento</th><td id="photoHrsDay">—</td>
+    </tr>
+    <tr>
+      <th>📆 Días sin funcionamiento</th><td id="photoDaysOff">—</td>
+      <th>💡 Consumo diario promedio (kWh/día)</th><td id="photoDailyAvg">—</td>
+    </tr>
+    <tr>
+      <th>⛽ Consumo estimado (L)</th>
+      <td id="photoLitros" colspan="3">—</td>
+    </tr>
+    <tr>
+      <th colspan="4" style="text-align:center;">🧩 Distribución por generador</th>
+    </tr>
+    <tr>
+      <th>Generador 1</th><td id="photoG1hrs">—</td><td id="photoG1pct" colspan="2">—</td>
+    </tr>
+    <tr>
+      <th>Generador 2</th><td id="photoG2hrs">—</td><td id="photoG2pct" colspan="2">—</td>
+    </tr>
+    <tr>
+      <th>Generador 3</th><td id="photoG3hrs">—</td><td id="photoG3pct" colspan="2">—</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      // ---------- Utilidades ----------
+      function parseDateDDMM(s) {
+        const str = String(s ?? '').trim();
+        if (!str) return null;
+        const num = Number(str.replace(',', '.'));
+        if (!isNaN(num) && num >= 1000) {
+          // Excel serial
+          const ms = Math.round((num - 25569) * 86400 * 1000);
+          return new Date(ms);
+        }
+        let m = str.match(
+          /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+        );
+        if (m) {
+          const d = +m[1],
+            M = +m[2],
+            y = +m[3];
+          const Y = y < 100 ? 2000 + y : y;
+          const hh = +(m[4] || 0),
+            mm = +(m[5] || 0),
+            ss = +(m[6] || 0);
+          return new Date(Y, M - 1, d, hh, mm, ss);
+        }
+        m = str.match(
+          /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+        );
+        if (m) {
+          const Y = +m[1],
+            M = +m[2],
+            d = +m[3];
+          const hh = +(m[4] || 0),
+            mm = +(m[5] || 0),
+            ss = +(m[6] || 0);
+          return new Date(Y, M - 1, d, hh, mm, ss);
+        }
+        const d2 = new Date(str);
+        return isNaN(d2) ? null : d2;
+      }
+      function parseTime(val) {
+        const s = String(val ?? '').trim();
+        if (s === '') return [0, 0, 0];
+        const num = Number(s.replace(',', '.'));
+        if (!isNaN(num) && num >= 0 && num < 2) {
+          const secs = Math.round(num * 86400);
+          return [
+            Math.floor(secs / 3600) % 24,
+            Math.floor((secs % 3600) / 60),
+            secs % 60,
+          ];
+        }
+        const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (m) return [+m[1], +m[2], +(m[3] || 0)];
+        return [0, 0, 0];
+      }
+      function toNum(x) {
+        if (x == null) return NaN;
+        const n = Number(String(x).replace(',', '.'));
+        return isNaN(n) ? NaN : n;
+      }
+
+      // ---------- Lectura AOA ----------
+      async function readAOA(file) {
+        const name = (file?.name || '').toLowerCase();
+        if (!file) throw new Error('Archivo no seleccionado');
+        if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          return XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+            defval: null,
+            raw: false,
+          });
+        } else {
+          const text = await file.text();
+          const lines = text.split(/\r?\n/);
+          const nonempty = lines.filter((l) => l.trim().length > 0);
+          const sep =
+            nonempty[0]?.includes(';') && !nonempty[0]?.includes(',')
+              ? ';'
+              : ',';
+          return lines.map((line) => line.split(sep));
+        }
+      }
+
+      // ---------- Energía ----------
+      function buildEnergyFromAOA(aoa) {
+        if (!aoa || aoa.length < 9)
+          throw new Error('ENERGÍA: archivo demasiado corto');
+        while (
+          aoa.length &&
+          aoa[0].every((v) => v == null || String(v).trim() === '')
+        )
+          aoa.shift();
+        while (
+          aoa[0] &&
+          (aoa[0][0] == null || String(aoa[0][0]).trim() === '') &&
+          aoa[1] &&
+          (aoa[1][0] == null || String(aoa[1][0]).trim() === '')
+        ) {
+          for (let i = 0; i < aoa.length; i++) aoa[i].shift();
+        }
+        const row6 = (aoa[0] || []).map((v) => String(v ?? '').trim());
+        const row7 = (aoa[1] || []).map((v) => String(v ?? '').trim());
+        const dataRows = aoa.slice(2);
+
+        // forward fill de generadores
+        const gens = [];
+        let current = '';
+        for (let i = 0; i < row6.length; i++) {
+          if (row6[i]) current = row6[i];
+          gens[i] = current;
+        }
+
+        // índice fecha
+        let fechaIdx = row7.findIndex(
+          (h) =>
+            String(h || '')
+              .toLowerCase()
+              .trim() === 'fecha'
+        );
+        if (fechaIdx < 0)
+          fechaIdx = row7.findIndex((h) =>
+            String(h || '')
+              .toLowerCase()
+              .includes('fecha')
+          );
+        if (fechaIdx < 0) throw new Error('ENERGÍA: no encontré columna FECHA');
+
+        function norm(s) {
+          return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+        const want = [
+          'potencia activa avg fase 1',
+          'potencia activa avg fase 2',
+          'potencia activa avg fase 3',
+        ];
+        const byGenIdx = {};
+        for (let c = 0; c < row7.length; c++) {
+          const g = gens[c] || '';
+          if (!/generador/i.test(g)) continue;
+          const i = want.indexOf(norm(row7[c]));
+          if (i >= 0) {
+            const key = g.trim();
+            byGenIdx[key] = byGenIdx[key] || { f1: -1, f2: -1, f3: -1 };
+            if (i === 0 && byGenIdx[key].f1 < 0) byGenIdx[key].f1 = c;
+            if (i === 1 && byGenIdx[key].f2 < 0) byGenIdx[key].f2 = c;
+            if (i === 2 && byGenIdx[key].f3 < 0) byGenIdx[key].f3 = c;
+          }
+        }
+        let genKeys = Object.keys(byGenIdx).filter(
+          (k) =>
+            byGenIdx[k].f1 >= 0 && byGenIdx[k].f2 >= 0 && byGenIdx[k].f3 >= 0
+        );
+        genKeys.sort(
+          (a, b) =>
+            parseInt((a.match(/(\d+)/) || [])[1] || '99') -
+            parseInt((b.match(/(\d+)/) || [])[1] || '99')
+        );
+        if (!genKeys.length)
+          throw new Error('ENERGÍA: no hay generadores completos');
+        genKeys = genKeys.slice(0, 3);
+
+        const byName = {};
+        genKeys.forEach((n) => (byName[n] = []));
+        for (const row of dataRows) {
+          const t = parseDateDDMM(row[fechaIdx]);
+          if (!t) continue;
+          for (const name of genKeys) {
+            const { f1, f2, f3 } = byGenIdx[name];
+            const y = toNum(row[f1]) + toNum(row[f2]) + toNum(row[f3]);
+            if (isFinite(y)) byName[name].push({ t, y });
+          }
+        }
+        Object.keys(byName).forEach((k) => byName[k].sort((a, b) => a.t - b.t));
+        // total
+        const map = new Map();
+        Object.values(byName).forEach((arr) => {
+          arr.forEach((p) => {
+            const tt = p.t.getTime();
+            const m = map.get(tt) || { t: new Date(tt), y: 0 };
+            m.y += p.y;
+            map.set(tt, m);
+          });
+        });
+        const total = Array.from(map.values()).sort((a, b) => a.t - b.t);
+        return { total, byName, genKeys };
+      }
+
+      // ---------- Combustible ----------
+      function buildFuelFromAOA(aoa) {
+        let headerIdx = -1;
+        for (let i = 0; i < Math.min(20, aoa.length); i++) {
+          const r = (aoa[i] || []).map((v) => String(v || '').toLowerCase());
+          if (r.join(' ').includes('date') && r.join(' ').includes('hora')) {
+            headerIdx = i;
+            break;
+          }
+        }
+        if (headerIdx < 0) headerIdx = 7;
+        const header = (aoa[headerIdx] || []).map((v) =>
+          String(v || '').trim()
+        );
+        const rows = aoa.slice(headerIdx + 1);
+
+        const findExact = (cols, name) =>
+          cols.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+        const findContains = (cols, frag) =>
+          cols.findIndex((h) => h.toLowerCase().includes(frag.toLowerCase()));
+
+        const dateIdx = ((i) => (i >= 0 ? i : findContains(header, 'date')))(
+          findExact(header, 'Date')
+        );
+        const horaIdx = ((i) => (i >= 0 ? i : findContains(header, 'hora')))(
+          findExact(header, 'Hora')
+        );
+        const totalIdx = findContains(header, 'total');
+        const volIdx = ((i) => (i >= 0 ? i : findContains(header, 'vol')))(
+          findExact(header, 'Volumen')
+        );
+
+        if (dateIdx < 0 || horaIdx < 0 || (totalIdx < 0 && volIdx < 0))
+          throw new Error('FUEL: no encontré Date/Hora/Volumen');
+
+        let out = [];
+        for (const r of rows) {
+          const d = parseDateDDMM(r[dateIdx]);
+          if (!d) continue;
+          const [hh, mm, ss] = parseTime(r[horaIdx]);
+          const t = new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+            hh,
+            mm,
+            ss
+          );
+          let liters = NaN;
+          if (totalIdx >= 0 && r[totalIdx] != null)
+            liters = toNum(r[totalIdx]) * 1000; // m³→L
+          else if (volIdx >= 0 && r[volIdx] != null)
+            liters = toNum(r[volIdx]) * 1000;
+          if (!isNaN(liters)) out.push({ t, y: liters });
+        }
+
+        // ordenar + deduplicar timestamps
+        out = out
+          .filter((p) => p.t instanceof Date && !isNaN(p.t))
+          .sort((a, b) => a.t - b.t)
+          .filter(
+            (p, i, arr) => i === 0 || p.t.getTime() !== arr[i - 1].t.getTime()
+          );
+        return out;
+      }
+      // ===== Utilidades de recargas + tendencia (portadas del archivo bueno) =====
+      function regress(x, y) {
+        const n = x.length;
+        if (n < 2) return { m: NaN, b: NaN };
+        let sx = 0,
+          sy = 0,
+          sxx = 0,
+          sxy = 0;
+        for (let i = 0; i < n; i++) {
+          sx += x[i];
+          sy += y[i];
+          sxx += x[i] * x[i];
+          sxy += x[i] * y[i];
+        }
+        const den = n * sxx - sx * sx;
+        if (den === 0) return { m: NaN, b: NaN };
+        const m = (n * sxy - sx * sy) / den;
+        const b = (sy - m * sx) / n;
+        return { m, b };
+      }
+
+      function detectRefills(series, thr = 800) {
+        const rec = [],
+          mask = new Array(series.length).fill(false);
+        if (series.length < 2) return { rec, mask };
+        const del = [null];
+        for (let i = 1; i < series.length; i++)
+          del.push(series[i].y - series[i - 1].y);
+        let on = false,
+          startIdx = null,
+          acc = 0;
+        for (let i = 1; i < series.length; i++) {
+          const d = del[i];
+          if (d > 0) {
+            if (!on) {
+              on = true;
+              startIdx = i - 1;
+              acc = d;
+            } else acc += d;
+          } else {
+            if (on) {
+              if (acc >= thr) {
+                const r = {
+                  inicioIdx: startIdx,
+                  finIdx: i - 1,
+                  inicio: series[startIdx].t,
+                  fin: series[i - 1].t,
+                  vol: Math.round(acc * 10) / 10,
+                };
+                rec.push(r);
+                for (let k = r.inicioIdx; k <= r.finIdx; k++) mask[k] = true;
+              }
+              on = false;
+              startIdx = null;
+              acc = 0;
+            }
+          }
+        }
+        if (on && acc >= thr) {
+          const r = {
+            inicioIdx: startIdx,
+            finIdx: series.length - 1,
+            inicio: series[startIdx].t,
+            fin: series[series.length - 1].t,
+            vol: Math.round(acc * 10) / 10,
+          };
+          rec.push(r);
+          for (let k = r.inicioIdx; k <= r.finIdx; k++) mask[k] = true;
+        }
+        return { rec, mask };
+      }
+
+      function buildTrendSegments(series, recargas, minPts = 50) {
+        const cuts = [];
+        if (recargas.length === 0) {
+          cuts.push({ startIdx: 0, endIdx: series.length - 1 });
+        } else {
+          cuts.push({ startIdx: 0, endIdx: recargas[0].inicioIdx });
+          for (let i = 0; i < recargas.length - 1; i++)
+            cuts.push({
+              startIdx: recargas[i].finIdx + 1,
+              endIdx: recargas[i + 1].inicioIdx,
+            });
+          cuts.push({
+            startIdx: recargas[recargas.length - 1].finIdx + 1,
+            endIdx: series.length - 1,
+          });
+        }
+        const segs = [];
+        for (const c of cuts) {
+          const n = c.endIdx - c.startIdx + 1;
+          if (n < minPts) continue;
+          const baseT = series[c.startIdx].t;
+          const x = [],
+            y = [];
+          for (let i = c.startIdx; i <= c.endIdx; i++) {
+            x.push((series[i].t - baseT) / 3600000);
+            y.push(series[i].y);
+          }
+          const { m, b } = regress(x, y);
+          segs.push({ startIdx: c.startIdx, endIdx: c.endIdx, m, b });
+        }
+        return segs;
+      }
+
+      function litersInRange(seriesFuel, recargas, t0, t1) {
+        // (nivel inicio − nivel fin) + sum(recargas en rango)
+        const inIdx = seriesFuel.findIndex((d) => d.t >= t0);
+        const outIdx = [...seriesFuel].reverse().findIndex((d) => d.t <= t1);
+        const fIn =
+          inIdx >= 0 ? seriesFuel[inIdx] : seriesFuel[seriesFuel.length - 1];
+        const fOut =
+          outIdx >= 0
+            ? seriesFuel[seriesFuel.length - 1 - outIdx]
+            : seriesFuel[0];
+        const base = (fIn?.y ?? 0) - (fOut?.y ?? 0);
+        let add = 0;
+        for (const r of recargas) {
+          if (r.fin < t0 || r.inicio > t1) continue;
+          add += r.vol;
+        }
+        return base + add;
+      }
+
+      // ---------- Estado ----------
+      // ---------- Estado ----------
+      let energyTotal = [];
+      let fuelLevel = [];
+      let energyByGen = {}; // Generadores individuales
+      let genKeys = []; // Nombres de generadores detectados
+
+      let viewStart = null;
+      let viewEnd = null;
+      let selectedIdx = null;
+      let contextMenu = null;
+
+      // ---------- Dibujo ----------
+      function mapX(t, t0, t1, w, pad = 40) {
+        return pad + ((t - t0) / (t1 - t0 || 1)) * (w - 2 * pad);
+      }
+      function mapYLeft(v, vMin, vMax, h, pad = 14) {
+        const p = (v - vMin) / (vMax - vMin || 1);
+        return h - pad - p * (h - 2 * pad);
+      }
+      function mapYRight(v, vMin, vMax, h, pad = 14) {
+        const p = (v - vMin) / (vMax - vMin || 1);
+        return h - pad - p * (h - 2 * pad);
+      }
+
+      function compressForCanvas(data, t0, t1, width) {
+        if (!data.length) return [];
+        const out = [];
+        const pxSpan = (t1 - t0) / Math.max(1, width);
+        let i = 0;
+        while (i < data.length && data[i].t.getTime() < t0) i++;
+        while (i < data.length && data[i].t.getTime() <= t1) {
+          const startT = data[i].t.getTime();
+          let minY = data[i].y,
+            maxY = data[i].y,
+            last = data[i];
+          i++;
+          while (i < data.length && data[i].t.getTime() < startT + pxSpan) {
+            if (data[i].y < minY) minY = data[i].y;
+            if (data[i].y > maxY) maxY = data[i].y;
+            last = data[i];
+            i++;
+          }
+          out.push({ t: new Date(startT), y: (minY + maxY) / 2 });
+        }
+        return out;
+      }
+
+      function drawAxes(ctx, t0, t1, kMin, kMax, lMin, lMax, w, h) {
+        ctx.strokeStyle = varGrid();
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(40, h - 14);
+        ctx.lineTo(w - 40, h - 14);
+        ctx.stroke();
+        ctx.fillStyle = '#9fb3c8';
+        ctx.font = '12px system-ui';
+        const steps = 5;
+        for (let i = 0; i <= steps; i++) {
+          const v = kMin + (i / steps) * (kMax - kMin);
+          const y = mapYLeft(v, kMin, kMax, h);
+          ctx.fillText(v.toFixed(0), 6, y + 4);
+          ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+          ctx.beginPath();
+          ctx.moveTo(40, y);
+          ctx.lineTo(w - 40, y);
+          ctx.stroke();
+        }
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= steps; i++) {
+          const v = lMin + (i / steps) * (lMax - lMin);
+          const y = mapYRight(v, lMin, lMax, h);
+          ctx.fillStyle = '#9fb3c8';
+          ctx.fillText(v.toFixed(0), w - 6, y + 4);
+        }
+        ctx.textAlign = 'left';
+// === Etiquetas de fecha en eje X ===
+ctx.fillStyle = '#9fb3c8';
+ctx.textAlign = 'center';
+ctx.font = '11px system-ui';
+const xSteps = 6; // cantidad de marcas
+for (let i = 0; i <= xSteps; i++) {
+  const tt = t0 + ((t1 - t0) * i) / xSteps;
+  const d = new Date(tt);
+  const label = d.toLocaleDateString('es-CL', {
+    day: '2-digit',
+    month: 'short',
+  });
+  const x = mapX(tt, t0, t1, w);
+  const y = h - 2; // justo debajo del eje
+  ctx.fillText(label, x, y);
+}
+ctx.textAlign = 'left';
+
+
+
+
+      }
+      function varGrid() {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue('--grid')
+          .trim();
+      }
+      function varBlue() {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue('--blue')
+          .trim();
+      }
+      function varOrange() {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue('--orange')
+          .trim();
+      }
+      // ---------- Dibujar líneas de tendencia (segmentos entre recargas) ----------
+      function drawTrends(ctx, segs, series, color, t0, t1, lMin, lMax, w, h) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([6, 4]);
+        ctx.shadowColor = 'rgba(64, 255, 230, 0.25)'; // brillo turquesa suave
+        ctx.shadowBlur = 6; // difuminado sutil
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        for (const s of segs) {
+          const a = series[s.startIdx];
+          const b = series[s.endIdx];
+          if (!a || !b) continue;
+
+          // Limitar tramo visible
+          const segStartT = Math.max(a.t.getTime(), t0);
+          const segEndT = Math.min(b.t.getTime(), t1);
+          if (segEndT <= segStartT) continue;
+
+          // Calcular valores Y reales (sin alterar intercepto)
+          const baseT = a.t.getTime();
+          const yStart = s.m * ((segStartT - baseT) / 3600000) + s.b;
+          const yEnd = s.m * ((segEndT - baseT) / 3600000) + s.b;
+
+          // Si el tramo está totalmente fuera del rango visible, saltar
+          if (yStart < lMin && yEnd < lMin) continue;
+          if (yStart > lMax && yEnd > lMax) continue;
+
+          // Mapear a coordenadas visibles
+          const x1 = mapX(segStartT, t0, t1, w);
+          const x2 = mapX(segEndT, t0, t1, w);
+          const Y1 = mapYRight(yStart, lMin, lMax, h);
+          const Y2 = mapYRight(yEnd, lMin, lMax, h);
+
+          // Dibujar línea
+          ctx.beginPath();
+          ctx.moveTo(x1, Y1);
+          ctx.lineTo(x2, Y2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ctx.setLineDash([]);
+      }
+
+      function render() {
+      
+        if (photoSeries.length) drawPhotoChart(photoSeries);
+
+        const c = $('chart'),
+          ctx = c.getContext('2d');
+
+            // 🔹 Escalado de alta resolución para nitidez
+const dpr = window.devicePixelRatio || 1;
+if (c.width !== c.clientWidth * dpr) {
+  c.width = c.clientWidth * dpr;
+  c.height = c.clientHeight * dpr;
+  ctx.scale(dpr, dpr);
+}
+        ctx.clearRect(0, 0, c.width, c.height);
+        const showE = $('chkEnergy').checked && energyTotal.length;
+        const showF = $('chkFuel').checked && fuelLevel.length;
+
+        if (!showE && !showF) {
+          $('status').textContent =
+            'Sube archivos y activa al menos una serie.';
+          return;
+        }
+
+        const globalTmin = Math.min(
+          showE ? energyTotal[0].t.getTime() : Infinity,
+          showF ? fuelLevel[0].t.getTime() : Infinity
+        );
+        const globalTmax = Math.max(
+          showE ? energyTotal[energyTotal.length - 1].t.getTime() : -Infinity,
+          showF ? fuelLevel[fuelLevel.length - 1].t.getTime() : -Infinity
+        );
+        const t0 = viewStart ? viewStart.getTime() : globalTmin;
+        const t1 = viewEnd ? viewEnd.getTime() : globalTmax;
+
+        const inE = showE
+          ? energyTotal.filter(
+              (p) => p.t.getTime() >= t0 && p.t.getTime() <= t1
+            )
+          : [];
+        const inF = showF
+          ? fuelLevel.filter((p) => p.t.getTime() >= t0 && p.t.getTime() <= t1)
+          : [];
+
+        // límites Y
+        let kMin = Infinity,
+          kMax = -Infinity,
+          lMin = Infinity,
+          lMax = -Infinity;
+        inE.forEach((p) => {
+          if (p.y < kMin) kMin = p.y;
+          if (p.y > kMax) kMax = p.y;
+        });
+        inF.forEach((p) => {
+          if (p.y < lMin) lMin = p.y;
+          if (p.y > lMax) lMax = p.y;
+        });
+        if (!isFinite(kMin) || !isFinite(kMax)) {
+          kMin = 0;
+          kMax = 1;
+        }
+        if (!isFinite(lMin) || !isFinite(lMax)) {
+          lMin = 0;
+          lMax = 1;
+        }
+
+        drawAxes(ctx, t0, t1, kMin, kMax, lMin, lMax, c.width, c.height);
+
+        // compresión por píxel (solo visual)
+        const eData = showE ? compressForCanvas(inE, t0, t1, c.width) : [];
+        const fData = showF ? compressForCanvas(inF, t0, t1, c.width) : [];
+
+        // energía
+        if (eData.length) {
+          ctx.strokeStyle = varBlue();
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          let started = false;
+          for (const d of eData) {
+            const x = mapX(d.t.getTime(), t0, t1, c.width),
+              y = mapYLeft(d.y, kMin, kMax, c.height);
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        // generadores individuales
+        const genColors = {
+          'Generador 1': '#9aff00', // verde lima
+          'Generador 2': '#7a5cff', // azul violáceo
+          'Generador 3': '#ff5c93', // rosado (igual que antes)
+        };
+
+        for (let i = 0; i < genKeys.length; i++) {
+          const key = genKeys[i];
+          const chk = $('chkG' + (i + 1));
+          if (!chk || !chk.checked) continue;
+
+          const serie = (energyByGen[key] || []).filter(
+            (p) => p.t.getTime() >= t0 && p.t.getTime() <= t1
+          );
+          if (!serie.length) continue;
+
+          ctx.strokeStyle = genColors[key] || '#aaa';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          let started = false;
+          for (const p of serie) {
+            const x = mapX(p.t.getTime(), t0, t1, c.width),
+              y = mapYLeft(p.y, kMin, kMax, c.height);
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+
+        // fuel (nivel)
+        if (fData.length) {
+          ctx.strokeStyle = varOrange();
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          let started = false;
+          for (const d of fData) {
+            const x = mapX(d.t.getTime(), t0, t1, c.width),
+              y = mapYRight(d.y, lMin, lMax, c.height);
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        // 🔴 Dibujar punto seleccionado (si existe)
+        if (selectedIdx != null && fuelLevel[selectedIdx]) {
+          const pt = fuelLevel[selectedIdx];
+          const px = mapX(pt.t.getTime(), t0, t1, c.width);
+          const py = mapYRight(pt.y, lMin, lMax, c.height);
+          ctx.fillStyle = '#ff4040';
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // indicadores
+        // kWh (trapezoidal)
+        let kwh = 0;
+        if (inE.length >= 2) {
+          for (let i = 0; i < inE.length - 1; i++) {
+            const p1 = inE[i].y,
+              p2 = inE[i + 1].y;
+            const dh = (inE[i + 1].t - inE[i].t) / 3600000;
+            kwh += ((p1 + p2) / 2) * dh;
+          }
+        }
+        // Energía individual por generador
+        let kwhByGen = {};
+        for (const key of genKeys) {
+          const serie = (energyByGen[key] || []).filter(
+            (p) => p.t.getTime() >= t0 && p.t.getTime() <= t1
+          );
+          let kw = 0;
+          if (serie.length >= 2) {
+            for (let i = 0; i < serie.length - 1; i++) {
+              const p1 = serie[i].y,
+                p2 = serie[i + 1].y;
+              const dh = (serie[i + 1].t - serie[i].t) / 3600000;
+              kw += ((p1 + p2) / 2) * dh;
+            }
+          }
+          kwhByGen[key] = kw;
+        }
+
+        // === Consumo y tendencia basados en TRAMOS ENTRE RECARGAS ===
+        const thr = 800; // umbral de recarga
+        const minPts = 50; // mínimo de puntos por tramo
+        const { rec: recargas } = detectRefills(fuelLevel, thr);
+
+        // Consumo visible usando fórmula robusta
+        const litrosConsumidos = litersInRange(
+          fuelLevel,
+          recargas,
+          new Date(t0),
+          new Date(t1)
+        );
+
+        // Total recargado (en el rango visible)
+        let totalRecargado = 0;
+        for (const r of recargas) {
+          if (r.fin < t0 || r.inicio > t1) continue;
+          totalRecargado += r.vol;
+        }
+
+        // Construir tramos de tendencia (entre recargas)
+        const segs = buildTrendSegments(fuelLevel, recargas, minPts);
+
+        // Pendiente promedio visible (L/h)
+        let slopeSum = 0,
+          hoursSum = 0;
+        for (const s of segs) {
+          const A = fuelLevel[s.startIdx].t.getTime();
+          const B = fuelLevel[s.endIdx].t.getTime();
+          const left = Math.max(A, t0),
+            right = Math.min(B, t1);
+          if (right <= left) continue;
+          const durH = (right - left) / 3600000;
+          slopeSum += s.m * durH;
+          hoursSum += durH;
+        }
+        const slopeVisible = hoursSum > 0 ? slopeSum / hoursSum : NaN;
+
+        // --- Panel de indicadores ---
+        const fmtInt = (v) =>
+          isFinite(v) && v > 0 ? Math.round(v).toLocaleString('es-CL') : '—';
+
+        // totales (sin decimales)
+        $('txtKWh').textContent = fmtInt(kwh);
+        $('txtLitros').textContent = fmtInt(litrosConsumidos);
+        $('txtRec').textContent = fmtInt(totalRecargado);
+
+        // eficiencia (única con decimales)
+        $('txtEff').textContent =
+          isFinite(litrosConsumidos) && litrosConsumidos > 0 && kwh > 0
+            ? (kwh / litrosConsumidos).toFixed(2)
+            : '—';
+
+        // mostrar cada generador en su propia fila (misma columna)
+        genKeys.forEach((key, i) => {
+          const val = kwhByGen[key] || 0;
+          const pct = kwh > 0 ? ((val / kwh) * 100).toFixed(1) : '0.0';
+          const el = $('txtG' + (i + 1));
+          if (el) el.textContent = `${fmtInt(val)} — ${pct}%`;
+        });
+
+        // fechas (sin tocar nada de tendencia)
+        $('txtInicio').textContent = (inE.length ? inE[0].t : inF[0]?.t || null)
+          ? (inE.length ? inE[0].t : inF[0].t).toLocaleString('es-CL')
+          : '—';
+        $('txtFin').textContent = (
+          inE.length ? inE[inE.length - 1].t : inF[inF.length - 1]?.t || null
+        )
+          ? (inE.length
+              ? inE[inE.length - 1].t
+              : inF[inF.length - 1].t
+            ).toLocaleString('es-CL')
+          : '—';
+
+    
+
+        const eff =
+          litrosConsumidos > 0 && kwh > 0 ? kwh / litrosConsumidos : 0;
+
+        // Panel
+        $('txtInicio').textContent = (inE.length ? inE[0].t : inF[0]?.t || null)
+          ? (inE.length ? inE[0].t : inF[0].t).toLocaleString('es-CL')
+          : '—';
+        $('txtFin').textContent = (
+          inE.length ? inE[inE.length - 1].t : inF[inF.length - 1]?.t || null
+        )
+          ? (inE.length
+              ? inE[inE.length - 1].t
+              : inF[inF.length - 1].t
+            ).toLocaleString('es-CL')
+          : '—';
+        $('txtKWh').textContent = kwh > 0 ? kwh.toFixed(1) : '—';
+        $('txtLitros').textContent =
+          litrosConsumidos > 0 ? litrosConsumidos.toFixed(1) : '—';
+        $('txtEff').textContent = eff > 0 ? eff.toFixed(2) : '—';
+        $('txtRec').textContent =
+          totalRecargado > 0 ? totalRecargado.toFixed(1) : '—';
+          // --- Nuevos indicadores: recargas y tasa ---
+const horasVisibles = (t1 - t0) / 3600000; // ms -> h
+const tasaPromLph = (litrosConsumidos > 0 && horasVisibles > 0)
+  ? (litrosConsumidos / horasVisibles)
+  : NaN;
+
+$('txtRefCount').textContent = Array.isArray(recargas) ? recargas.length : 0;
+$('txtRate').textContent = isFinite(tasaPromLph) ? tasaPromLph.toFixed(1) : '—';
+$('txtRefList').textContent =
+  (Array.isArray(recargas) && recargas.length)
+    ? recargas.map(r => Math.round(r.vol).toLocaleString('es-CL')).join(', ')
+    : '—';
+
+
+        // --- Dibujar líneas de tendencia ---
+        if ($('chkTrend').checked && segs.length) {
+          drawTrends(
+            ctx,
+            segs,
+            fuelLevel,
+            'rgba(64, 255, 230, 0.7)',
+            t0,
+            t1,
+            lMin,
+            lMax,
+            c.width,
+            c.height
+          );
+        }
+        drawGeneratorLoad();
+        updateGenIndicators();
+
+
+// 🔹 Render del sistema de alimentación sincronizado
+if (feedSeries.length > 0) {
+  const feedVisible = feedSeries.filter(
+    p => (!viewStart || p.t >= viewStart) && (!viewEnd || p.t <= viewEnd)
+  );
+  drawFeedChart(feedVisible);
+  updateFeedIndicators(
+    feedVisible,
+    viewStart || feedVisible[0].t,
+    viewEnd || feedVisible[feedVisible.length - 1].t
+  );
+}
+        // 🔹 Restaurar brush inferior
+        drawBrush(t0, t1, globalTmin, globalTmax);
+        $('status').textContent = '';
+      }
+
+
+      function drawBrush(t0, t1, all0, all1) {
+        const b = $('brush'),
+          ctx = b.getContext('2d');
+          
+
+// 🔹 Escalado de alta resolución para nitidez (brush)
+const bdpr = window.devicePixelRatio || 1;
+if (b.width !== b.clientWidth * bdpr) {
+  b.width = b.clientWidth * bdpr;
+  b.height = b.clientHeight * bdpr;
+  ctx.scale(bdpr, bdpr);
+}
+
+          
+          w = b.width,
+          h = b.height,
+          PAD = 40;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#0c121b';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = varGrid();
+        ctx.beginPath();
+        ctx.moveTo(PAD, h - 14);
+        ctx.lineTo(w - PAD, h - 14);
+        ctx.stroke();
+
+        // preview simple (energía + fuel)
+        const preview = (series, color) => {
+          if (!series.length) return;
+          const min = Math.min(...series.map((p) => p.y)),
+            max = Math.max(...series.map((p) => p.y));
+          ctx.strokeStyle = color;
+          ctx.beginPath();
+          let started = false;
+          for (const d of series) {
+            const x =
+              PAD +
+              ((d.t.getTime() - all0) / (all1 - all0 || 1)) * (w - 2 * PAD);
+            const y = h - 14 - ((d.y - min) / (max - min || 1)) * (h - 28);
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        };
+        preview(energyTotal, 'rgba(78,161,255,0.8)');
+        preview(fuelLevel, 'rgba(255,209,102,0.9)');
+
+        const x1 = PAD + ((t0 - all0) / (all1 - all0 || 1)) * (w - 2 * PAD);
+        const x2 = PAD + ((t1 - all0) / (all1 - all0 || 1)) * (w - 2 * PAD);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(Math.min(x1, x2), 0, Math.abs(x2 - x1), h);
+      }
+      // --- Selección y edición de puntos de fuel ---
+      function findNearestFuelPoint(px, py, t0, t1, lMin, lMax, w, h) {
+        if (!fuelLevel.length) return null;
+        let best = null;
+        let minDist = Infinity;
+        for (let i = 0; i < fuelLevel.length; i++) {
+          const fx = mapX(fuelLevel[i].t.getTime(), t0, t1, w);
+          const fy = mapYRight(fuelLevel[i].y, lMin, lMax, h);
+          const dx = fx - px,
+            dy = fy - py;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < minDist) {
+            minDist = dist;
+            best = { idx: i, fx, fy };
+          }
+        }
+        return minDist < 10 ? best : null; // umbral de 10 px
+      }
+
+      function showContextMenu(x, y, idx) {
+        if (contextMenu) contextMenu.remove();
+        contextMenu = document.createElement('div');
+        contextMenu.style.position = 'absolute';
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+        contextMenu.style.background = '#111';
+        contextMenu.style.border = '1px solid #444';
+        contextMenu.style.padding = '6px';
+        contextMenu.style.borderRadius = '8px';
+        contextMenu.style.zIndex = 1000;
+        contextMenu.innerHTML = `
+    <div style="cursor:pointer; padding:4px;" id="optDel">🗑️ Eliminar punto</div>
+    <div style="cursor:pointer; padding:4px;" id="optSmooth">🔄 Suavizar punto</div>
+  `;
+        document.body.appendChild(contextMenu);
+
+        $('optDel').onclick = () => {
+          deleteFuelPoint(idx);
+          contextMenu.remove();
+        };
+        $('optSmooth').onclick = () => {
+          smoothFuelPoint(idx);
+          contextMenu.remove();
+        };
+      }
+
+      function deleteFuelPoint(idx) {
+        if (idx > 0 && idx < fuelLevel.length) {
+          fuelLevel.splice(idx, 1);
+          render();
+        }
+      }
+
+      function smoothFuelPoint(idx) {
+        if (idx > 0 && idx < fuelLevel.length - 1) {
+          fuelLevel[idx].y = (fuelLevel[idx - 1].y + fuelLevel[idx + 1].y) / 2;
+          render();
+        }
+      }
+
+      // ---------- Interacción ----------
+
+      function evtToCanvasXY(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+          y: (evt.clientY - rect.top) * (canvas.height / rect.height),
+        };
+      }
+      // Clic en el gráfico principal
+      $('chart').addEventListener('click', (evt) => {
+        const c = $('chart');
+        const { x, y } = evtToCanvasXY(c, evt);
+        const globalTmin = Math.min(
+          energyTotal[0]?.t.getTime() || Infinity,
+          fuelLevel[0]?.t.getTime() || Infinity
+        );
+        const globalTmax = Math.max(
+          energyTotal[energyTotal.length - 1]?.t.getTime() || -Infinity,
+          fuelLevel[fuelLevel.length - 1]?.t.getTime() || -Infinity
+        );
+        const t0 = viewStart ? viewStart.getTime() : globalTmin;
+        const t1 = viewEnd ? viewEnd.getTime() : globalTmax;
+        const lMin = Math.min(...fuelLevel.map((d) => d.y));
+        const lMax = Math.max(...fuelLevel.map((d) => d.y));
+        const nearest = findNearestFuelPoint(
+          x,
+          y,
+          t0,
+          t1,
+          lMin,
+          lMax,
+          c.width,
+          c.height
+        );
+        if (nearest) {
+          selectedIdx = nearest.idx;
+          showContextMenu(evt.clientX, evt.clientY, nearest.idx);
+        } else if (contextMenu) {
+          contextMenu.remove();
+        }
+      });
+
+      // Cerrar menú si clic fuera del menú o del gráfico
+      window.addEventListener('click', (e) => {
+        // Evitar cierre instantáneo: si el clic fue dentro del menú o justo sobre el gráfico, no cerrar todavía
+        if (
+          contextMenu &&
+          (contextMenu.contains(e.target) || e.target.id === 'chart')
+        ) {
+          return;
+        }
+
+        if (contextMenu) {
+          contextMenu.remove();
+          contextMenu = null;
+          selectedIdx = null;
+        }
+      });
+// 🔹 Eliminar puntos consecutivos con la tecla D
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "d") return; // solo letra D
+  if (selectedIdx == null) return; // si no hay punto seleccionado, nada
+
+  // Eliminar el punto actual
+  fuelLevel.splice(selectedIdx, 1);
+
+  // Si quedan más puntos, seleccionar el siguiente
+  if (selectedIdx < fuelLevel.length) {
+    selectedIdx = Math.min(selectedIdx, fuelLevel.length - 1);
+  } else {
+    selectedIdx = null; // si se acabaron
+  }
+
+  render();
+});
+
+      // Brush drag
+      (function () {
+        const b = $('brush');
+        let dragging = false;
+        let startX = 0;
+        b.addEventListener('mousedown', (e) => {
+          dragging = true;
+          startX = evtToCanvasXY(b, e).x;
+        });
+        window.addEventListener('mousemove', (e) => {
+          if (!dragging) return;
+          const x = evtToCanvasXY(b, e).x,
+            PAD = 40,
+            w = b.width;
+          const all0 = Math.min(
+            energyTotal[0]?.t.getTime() || Infinity,
+            fuelLevel[0]?.t.getTime() || Infinity
+          );
+          const all1 = Math.max(
+            energyTotal[energyTotal.length - 1]?.t.getTime() || -Infinity,
+            fuelLevel[fuelLevel.length - 1]?.t.getTime() || -Infinity
+          );
+          if (!isFinite(all0) || !isFinite(all1)) return;
+          const pct1 = Math.max(0, Math.min(1, (startX - PAD) / (w - 2 * PAD)));
+          const pct2 = Math.max(0, Math.min(1, (x - PAD) / (w - 2 * PAD)));
+          const tA = all0 + pct1 * (all1 - all0),
+            tB = all0 + pct2 * (all1 - all0);
+          viewStart = new Date(Math.min(tA, tB));
+          viewEnd = new Date(Math.max(tA, tB));
+          render();
+        });
+        window.addEventListener('mouseup', () => (dragging = false));
+        b.addEventListener('dblclick', () => {
+          viewStart = null;
+          viewEnd = null;
+          render();
+        });
+      })();
+
+      $('chart').addEventListener('dblclick', () => {
+        viewStart = null;
+        viewEnd = null;
+        render();
+      });
+      $('chkEnergy').addEventListener('change', render);
+      $('chkFuel').addEventListener('change', render);
+      $('chkTrend').addEventListener('change', render);
+      $('btnReset').addEventListener('click', () => {
+        viewStart = null;
+        viewEnd = null;
+        render();
+      });
+
+      // ---------- Cargar y render ----------
+      $('btnRender').addEventListener('click', async () => {
+        try {
+          $('status').textContent = 'Procesando...';
+          const [aoaE, aoaF] = await Promise.all([
+            $('fileEnergy').files[0]
+              ? readAOA($('fileEnergy').files[0])
+              : Promise.resolve(null),
+            $('fileFuel').files[0]
+              ? readAOA($('fileFuel').files[0])
+              : Promise.resolve(null),
+          ]);
+// 🔹 Actualizar título principal con el nombre del centro (versión con mayúscula inicial)
+const energyFile = $('fileEnergy').files[0];
+if (energyFile) {
+  const baseName = energyFile.name.split('.')[0]; // sin extensión
+  let centro = baseName.split('_')[0]; // primera palabra antes del guion bajo
+  centro = centro.charAt(0).toUpperCase() + centro.slice(1).toLowerCase(); // Mayúscula inicial
+  document.querySelector('h1').innerHTML =
+    `Centro de Telemetría — Energía (<b>kWh</b>) + Combustible (<b>L</b>) — Centro <b>${centro}</b>`;
+}
+
+
+
+          if (aoaE) {
+            const e = buildEnergyFromAOA(aoaE);
+            energyTotal = e.total;
+            energyByGen = e.byName;
+            genKeys = e.genKeys;
+          }
+
+          if (aoaF) {
+            fuelLevel = buildFuelFromAOA(aoaF);
+          }
+          // rango inicial real
+          const tmins = [],
+            tmaxs = [];
+          if (energyTotal.length) {
+            tmins.push(energyTotal[0].t.getTime());
+            tmaxs.push(energyTotal[energyTotal.length - 1].t.getTime());
+          }
+          if (fuelLevel.length) {
+            tmins.push(fuelLevel[0].t.getTime());
+            tmaxs.push(fuelLevel[fuelLevel.length - 1].t.getTime());
+          }
+          if (tmins.length) {
+            viewStart = new Date(Math.min(...tmins));
+            viewEnd = new Date(Math.max(...tmaxs));
+          }
+          render();
+          drawHistograms();
+        } catch (err) {
+          console.error(err);
+          $('status').textContent = 'Error: ' + (err?.message || err);
+        }
+      });
+// 🔹 Selector de rango manual de fechas
+$('btnSetRange').addEventListener('click', () => {
+  const startStr = $('dateStart').value;
+  const endStr = $('dateEnd').value;
+  if (!startStr || !endStr) {
+    alert('Selecciona ambas fechas: inicio y fin.');
+    return;
+  }
+  const t0 = new Date(startStr);
+  const t1 = new Date(endStr);
+  if (t1 <= t0) {
+    alert('La fecha final debe ser posterior a la inicial.');
+    return;
+  }
+  viewStart = t0;
+  viewEnd = t1;
+  render();
+});
+// =======================================================
+// 🔹 SISTEMA DE ALIMENTACIÓN
+// =======================================================
+let feedSeries = [];
+
+function buildFeedFromAOA(aoa) {
+  if (!aoa || aoa.length < 9) throw new Error("ALIMENTACIÓN: archivo demasiado corto");
+
+  // Limpieza inicial
+  while (aoa.length && aoa[0].every(v => v == null || String(v).trim() === "")) aoa.shift();
+
+  const row6 = (aoa[0] || []).map(v => String(v ?? "").trim());
+  const row7 = (aoa[1] || []).map(v => String(v ?? "").trim());
+  const dataRows = aoa.slice(2);
+
+  // Buscar columna de fecha
+  let fechaIdx = row7.findIndex(h => String(h || "").toLowerCase().includes("fecha"));
+  if (fechaIdx < 0) throw new Error("ALIMENTACIÓN: no encontré columna FECHA");
+
+  // Buscar columnas de potencia activa
+  const norm = s => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const fases = ["potencia activa avg fase 1", "potencia activa avg fase 2", "potencia activa avg fase 3"];
+  const idx = fases.map(f => row7.findIndex(h => norm(h).includes(f)));
+  if (idx.some(i => i < 0)) throw new Error("ALIMENTACIÓN: faltan columnas de potencia activa");
+
+  const out = [];
+  for (const row of dataRows) {
+    const t = parseDateDDMM(row[fechaIdx]);
+    if (!t) continue;
+    const sum = idx.map(i => toNum(row[i])).reduce((a, b) => a + b, 0);
+    if (isFinite(sum)) out.push({ t, y: sum });
+  }
+
+  return out.sort((a, b) => a.t - b.t);
+}
+
+function drawFeedChart(series) {
+  const c = $("chartFeed");
+  const ctx = c.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== c.clientWidth * dpr) {
+    c.width = c.clientWidth * dpr;
+    c.height = c.clientHeight * dpr;
+    ctx.scale(dpr, dpr);
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (!series.length) return;
+
+  const showPower = $("chkFeedPower").checked;
+  const showOnOff = $("chkFeedOnOff").checked;
+  const showGens = $("chkFeedGens").checked;
+
+  const w = c.clientWidth, h = c.clientHeight, pad = 40;
+  const t0 = series[0].t.getTime(), t1 = series[series.length - 1].t.getTime();
+  const yMin = Math.min(...series.map(p => p.y));
+  const yMax = Math.max(...series.map(p => p.y));
+
+  // --- Ejes ---
+  ctx.strokeStyle = "#22314a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, h - pad);
+  ctx.stroke();
+
+  // Etiquetas eje Y
+  ctx.fillStyle = "#9fb3c8";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 5; i++) {
+  const v = yMin + (i / 5) * (yMax - yMin);
+  const y = h - pad - (i / 5) * (h - 2 * pad);
+  ctx.fillText(Math.round(v), pad - 6, y); // 🔹 sin decimales
+}
+
+  // Etiquetas eje X
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let i = 0; i <= 6; i++) {
+    const tt = t0 + ((t1 - t0) * i) / 6;
+    const d = new Date(tt);
+    const label = d.toLocaleDateString("es-CL", { day: "2-digit", month: "short" });
+    const x = pad + ((w - 2 * pad) * i) / 6;
+    ctx.fillText(label, x, h - pad + 6);
+  }
+
+  // --- Potencia activa ---
+  if (showPower) {
+    ctx.strokeStyle = "#00ffa3";
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = "rgba(0,255,163,0.4)";
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    let started = false;
+    for (const d of series) {
+      const x = pad + ((d.t.getTime() - t0) / (t1 - t0)) * (w - 2 * pad);
+      const y = h - pad - ((d.y - yMin) / (yMax - yMin)) * (h - 2 * pad);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+ // --- ON/OFF (relleno continuo) ---
+if (showOnOff) {
+  const baseY = h - pad; // parte inferior del gráfico
+  const onColor = "rgba(64, 128, 255, 0.18)"; // relleno turquesa translúcido
+  const lineColor = "#4ea1ff"; // línea brillante continua
+  const threshold = 5; // potencia mínima para considerar "encendido"
+
+  let segmentStart = null;
+  for (let i = 0; i < series.length; i++) {
+    const on = series[i].y > threshold;
+    const x = pad + ((series[i].t.getTime() - t0) / (t1 - t0)) * (w - 2 * pad);
+    const y = h - pad - ((series[i].y - yMin) / (yMax - yMin)) * (h - 2 * pad);
+
+    if (on && segmentStart === null) {
+      // inicio de un bloque encendido
+      segmentStart = x;
+    } else if (!on && segmentStart !== null) {
+      // fin del bloque encendido: dibujar relleno
+      const segmentEnd = x;
+      ctx.fillStyle = onColor;
+      ctx.fillRect(segmentStart, pad, segmentEnd - segmentStart, h - 2 * pad);
+      segmentStart = null;
+    }
+  }
+  // Si terminó encendido, cerrar el último bloque
+  if (segmentStart !== null) {
+    ctx.fillStyle = onColor;
+    ctx.fillRect(segmentStart, pad, w - pad - segmentStart, h - 2 * pad);
+  }
+
+  // Dibujar línea continua encima
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let started = false;
+  for (const d of series) {
+    const yVal = d.y > threshold ? 1 : 0;
+    const x = pad + ((d.t.getTime() - t0) / (t1 - t0)) * (w - 2 * pad);
+    const y = baseY - yVal * (h - 2 * pad);
+    if (!started) {
+      ctx.moveTo(x, y);
+      started = true;
+    } else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+
+  // --- Generadores activos (mapeo) ---
+  if (showGens && genKeys.length && energyByGen) {
+    const colors = {
+      "Generador 1": "#9aff00",
+      "Generador 2": "#7a5cff",
+      "Generador 3": "#ff5c93"
+    };
+
+    const dt = (series[1].t - series[0].t) || 60000;
+    for (let i = 0; i < series.length; i++) {
+      const p = series[i];
+      if (p.y <= 5) continue; // sólo cuando alimentación encendida
+      const t = p.t.getTime();
+      const genActivos = genKeys.filter(k => {
+        const serieG = energyByGen[k];
+        if (!serieG || !serieG.length) return false;
+        const near = serieG.find(g => Math.abs(g.t - t) < dt * 3);
+        return near && near.y > 5; // potencia > 5 kW ≈ generador activo
+      });
+
+      if (!genActivos.length) continue;
+
+      // color promedio si hay más de un generador
+      const col = genActivos.length === 1
+        ? colors[genActivos[0]]
+        : mezclaRGB(genActivos.map(k => colors[k]));
+
+      const x = pad + ((t - t0) / (t1 - t0)) * (w - 2 * pad);
+      const y = h - pad - 0.5 * (h - 2 * pad); // mitad del eje para marcar presencia
+      ctx.fillStyle = col;
+      ctx.fillRect(x - 1, y - 2, 2, 4);
+    }
+  }
+
+// --- LEYENDA DEL SISTEMA DE ALIMENTACIÓN ---
+const legendFeed = document.getElementById("legendFeed");
+if (legendFeed) {
+  legendFeed.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px;font-size:13px;">
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#00ffa3;display:inline-block;border-radius:2px;"></span>
+        Potencia activa
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#4ea1ff;display:inline-block;border-radius:2px;"></span>
+        Estado ON/OFF
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#9aff00;display:inline-block;border-radius:2px;"></span>
+        Generador 1
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#7a5cff;display:inline-block;border-radius:2px;"></span>
+        Generador 2
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#ff5c93;display:inline-block;border-radius:2px;"></span>
+        Generador 3
+      </span>
+    </div>`;
+}
+
+
+}
+
+// Mezclar colores hex si hay varios generadores
+function mezclaRGB(cols) {
+  const rgb = cols.map(c => {
+    const v = parseInt(c.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  });
+  const avg = [0, 0, 0];
+  rgb.forEach(r => { avg[0] += r[0]; avg[1] += r[1]; avg[2] += r[2]; });
+  avg[0] /= rgb.length; avg[1] /= rgb.length; avg[2] /= rgb.length;
+  return `rgb(${avg.map(v => Math.round(v)).join(",")})`;
+}
+// ===========================================================
+// 🔹 GRÁFICO LINEAL DE CARGA POR GENERADOR (% en kVA vs Tiempo)
+// ===========================================================
+function drawGeneratorLoad() {
+  const c = $("chartLoad");
+  if (!c) return;
+  const ctx = c.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== c.clientWidth * dpr) {
+    c.width = c.clientWidth * dpr;
+    c.height = c.clientHeight * dpr;
+    ctx.scale(dpr, dpr);
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  if (!energyByGen || !Object.keys(energyByGen).length) return;
+
+  // Entradas del usuario
+  const gMax = [
+    parseFloat($("g1Max").value) || 200,
+    parseFloat($("g2Max").value) || 200,
+    parseFloat($("g3Max").value) || 200
+  ];
+  const gFP = [
+    parseFloat($("g1FP").value) || 0.9,
+    parseFloat($("g2FP").value) || 0.9,
+    parseFloat($("g3FP").value) || 0.9
+  ];
+
+  // 🔹 Calcular potencia máxima en kW (referencia fija)
+  gMax.forEach((kva, i) => {
+    const kw = kva * gFP[i];
+    $("g" + (i + 1) + "kW").textContent = kw.toFixed(1) + " kW";
+  });
+
+  const colors = ["#9aff00", "#7a5cff", "#ff5c93"];
+  const labels = ["Generador 1", "Generador 2", "Generador 3"];
+  const w = c.clientWidth, h = c.clientHeight, pad = 40;
+  const t0 = viewStart ? viewStart.getTime() : energyTotal[0]?.t.getTime() || 0;
+  const t1 = viewEnd ? viewEnd.getTime() : energyTotal.at(-1)?.t.getTime() || 1;
+
+  // --- Ejes ---
+  ctx.strokeStyle = "#22314a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, h - pad);
+  ctx.stroke();
+
+  // --- Eje Y 0–100 % ---
+  ctx.fillStyle = "#9fb3c8";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 5; i++) {
+    const v = i * 20;
+    const y = h - pad - (v / 100) * (h - 2 * pad);
+    ctx.fillText(v + "%", pad - 6, y);
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(w - pad, y);
+    ctx.stroke();
+  }
+
+  // --- Eje X fechas ---
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let i = 0; i <= 6; i++) {
+    const tt = t0 + ((t1 - t0) * i) / 6;
+    const d = new Date(tt);
+    const label = d.toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "short",
+    });
+    const x = pad + ((w - 2 * pad) * i) / 6;
+    ctx.fillText(label, x, h - pad + 6);
+  }
+
+  // --- Dibujar curvas de % de carga ---
+  labels.forEach((label, i) => {
+    const serie = energyByGen[label];
+    if (!serie?.length) return;
+
+    const data = serie.filter(
+      (p) => p.t.getTime() >= t0 && p.t.getTime() <= t1
+    );
+    if (!data.length) return;
+
+    ctx.strokeStyle = colors[i];
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = colors[i] + "55";
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    let started = false;
+
+    for (const d of data) {
+      const kvaActual = d.y / gFP[i]; // de kW → kVA
+      const pct = Math.min(100, (kvaActual / gMax[i]) * 100);
+
+      const x = pad + ((d.t.getTime() - t0) / (t1 - t0)) * (w - 2 * pad);
+      const y = h - pad - (pct / 100) * (h - 2 * pad);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else ctx.lineTo(x, y);
+    }
+
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+
+  // --- Líneas de referencia ---
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = "rgba(255,0,0,0.4)";
+  const y100 = h - pad - (100 / 100) * (h - 2 * pad);
+  ctx.beginPath();
+  ctx.moveTo(pad, y100);
+  ctx.lineTo(w - pad, y100);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255,255,0,0.3)";
+  const y80 = h - pad - (80 / 100) * (h - 2 * pad);
+  ctx.beginPath();
+  ctx.moveTo(pad, y80);
+  ctx.lineTo(w - pad, y80);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+// ===========================================================
+// 🔹 Indicadores del rango visible: porcentaje de carga por generador (>5% activo)
+// ===========================================================
+function updateGenIndicators() {
+  if (!energyByGen || !Object.keys(energyByGen).length) return;
+
+  const gMax = [
+    parseFloat($("g1Max").value) || 200,
+    parseFloat($("g2Max").value) || 200,
+    parseFloat($("g3Max").value) || 200
+  ];
+  const gFP = [
+    parseFloat($("g1FP").value) || 0.9,
+    parseFloat($("g2FP").value) || 0.9,
+    parseFloat($("g3FP").value) || 0.9
+  ];
+  const labels = ["Generador 1", "Generador 2", "Generador 3"];
+
+  const t0 = viewStart ? viewStart.getTime() : energyTotal[0]?.t.getTime() || 0;
+  const t1 = viewEnd ? viewEnd.getTime() : energyTotal.at(-1)?.t.getTime() || 1;
+
+  for (let i = 0; i < 3; i++) {
+    const serie = energyByGen[labels[i]];
+    if (!serie?.length) continue;
+
+    const data = serie.filter(p => p.t.getTime() >= t0 && p.t.getTime() <= t1);
+    if (!data.length) continue;
+
+    // Calcular % de carga (kVA relativo)
+    const pctArray = data.map(d => Math.min(100, (d.y / gFP[i]) / gMax[i] * 100));
+
+    // Filtrar solo puntos activos (>5%)
+    const activos = pctArray
+      .map((v, idx) => ({ v, t: data[idx].t }))
+      .filter(p => p.v > 0);
+
+    if (!activos.length) {
+      $("g" + (i + 1) + "MaxPct").textContent = "—";
+      $("g" + (i + 1) + "MinPct").textContent = "—";
+      $("g" + (i + 1) + "AvgPct").textContent = "—";
+      $("g" + (i + 1) + "Hours").textContent = "0.0 h";
+      continue;
+    }
+
+    const values = activos.map(p => p.v);
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+    // Calcular horas de funcionamiento continuo (>5%)
+    let horas = 0;
+    for (let j = 1; j < activos.length; j++) {
+      const dt = (activos[j].t - activos[j - 1].t) / 3600000; // ms→h
+      // sólo sumamos si los puntos están separados <1h para evitar falsos tramos
+      if (dt < 1.2) horas += dt;
+    }
+
+    $("g" + (i + 1) + "MaxPct").textContent = max.toFixed(1) + " %";
+    $("g" + (i + 1) + "MinPct").textContent = min.toFixed(1) + " %";
+    $("g" + (i + 1) + "AvgPct").textContent = avg.toFixed(1) + " %";
+    $("g" + (i + 1) + "Hours").textContent = horas.toFixed(1) + " h";
+  }
+}
+
+
+// 🔹 Calcular indicadores del sistema de alimentación
+function updateFeedIndicators(series, t0, t1) {
+  const visible = series.filter(p => p.t >= t0 && p.t <= t1);
+  if (!visible.length) return;
+
+  // 🔹 Energía total (trapezoidal)
+  let kwh = 0;
+  for (let i = 0; i < visible.length - 1; i++) {
+    const p1 = visible[i].y, p2 = visible[i + 1].y;
+    const dh = (visible[i + 1].t - visible[i].t) / 3600000;
+    kwh += ((p1 + p2) / 2) * dh;
+  }
+
+  // 🔹 Potencia promedio (solo cuando > 1 kW)
+  const active = visible.filter(p => p.y > 1);
+  const avg = active.length ? active.reduce((a, b) => a + b.y, 0) / active.length : 0;
+
+  // 🔹 Duración total visible
+  const durHrs = (visible[visible.length - 1].t - visible[0].t) / 3600000;
+  const durDays = durHrs / 24;
+
+  // 🔹 Detección de días activos
+  const mapDays = {};
+  for (const p of visible) {
+    const key = p.t.toISOString().split("T")[0];
+    mapDays[key] = mapDays[key] || [];
+    mapDays[key].push(p.y);
+  }
+
+  const days = Object.keys(mapDays);
+  let activeDays = 0, inactiveDays = 0, hoursUseTotal = 0, dailyKwh = [];
+
+  for (const d of days) {
+    const points = mapDays[d];
+    const activePts = points.filter(v => v > 1);
+    if (activePts.length) {
+      activeDays++;
+      // calcular horas de uso del día
+      const ratio = activePts.length / points.length;
+      const dayHrs = ratio * 24;
+      hoursUseTotal += dayHrs;
+
+      // consumo diario (kWh)
+      let kwhDay = 0;
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i], p2 = points[i + 1];
+        const dh = 24 / points.length;
+        kwhDay += ((p1 + p2) / 2) * (dh / 1);
+      }
+      dailyKwh.push(kwhDay);
+    } else {
+      inactiveDays++;
+    }
+  }
+
+  const hrsDayAvg = activeDays ? hoursUseTotal / activeDays : 0;
+  const dailyAvgKwh = dailyKwh.length ? dailyKwh.reduce((a, b) => a + b, 0) / dailyKwh.length : 0;
+
+  // 🔹 Potencia máxima y mínima
+  const maxVal = Math.max(...visible.map(p => p.y));
+  const minVal = Math.min(...visible.map(p => p.y));
+  const maxTime = visible.find(p => p.y === maxVal)?.t;
+  const minTime = visible.find(p => p.y === minVal)?.t;
+
+  // === Mostrar en pantalla ===
+  $("feedInicio").textContent = visible[0].t.toLocaleString("es-CL");
+  $("feedFin").textContent = visible[visible.length - 1].t.toLocaleString("es-CL");
+ 
+ 
+  $("feedKWh").textContent = Math.round(kwh).toLocaleString("es-CL");
+  $("feedAvg").textContent = avg.toFixed(1);
+  $("feedHrsUse").textContent = Math.round(hoursUseTotal);
+
+  $("feedHrsDay").textContent = hrsDayAvg.toFixed(1);
+  $("feedDaysOff").textContent = inactiveDays.toString();
+  $("feedDailyAvg").textContent = Math.round(dailyAvgKwh).toLocaleString("es-CL");
+  // 🔹 Conversión a litros usando eficiencia general (kWh/L) del panel principal
+const effText = document.getElementById("txtEff")?.textContent || "";
+const eff = parseFloat(effText.replace(",", ".")); // eficiencia actual en kWh/L
+
+let litrosConsumidos = "—";
+if (isFinite(eff) && eff > 0) {
+  litrosConsumidos = (kwh / eff).toFixed(1); // energía utilizada / eficiencia global
+}
+
+document.getElementById("feedLitros").textContent = litrosConsumidos;
+
+
+  $("feedMax").textContent = `${maxVal.toFixed(1)} kW`;
+ 
+  // 🔹 Calcular horas y porcentajes de uso del sistema de alimentación por generador
+if (energyByGen && Object.keys(energyByGen).length && genKeys.length) {
+  const labels = genKeys; // Generadores detectados (máx 3)
+  const totalFeedHrs = Math.round(hoursUseTotal);
+  const feedActive = visible.filter(p => p.y > 1); // sistema encendido
+
+  let gHours = new Array(labels.length).fill(0);
+
+  if (feedActive.length > 1) {
+    const dt = (feedActive[1].t - feedActive[0].t) / 3600000; // intervalo medio en horas
+
+    for (let i = 0; i < feedActive.length; i++) {
+      const t = feedActive[i].t.getTime();
+      labels.forEach((name, idx) => {
+        const serie = energyByGen[name] || [];
+        const near = serie.find(p => Math.abs(p.t - t) < dt * 3600000);
+        if (near && near.y > 5) gHours[idx] += dt;
+      });
+    }
+
+    const totalGenHrs = gHours.reduce((a, b) => a + b, 0);
+    labels.forEach((name, idx) => {
+      const hrs = gHours[idx];
+      const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
+      $(`feedG${idx + 1}hrs`).textContent = `${Math.round(hrs)} h`;
+      $(`feedG${idx + 1}pct`).textContent = `${pct.toFixed(1)} %`;
+    });
+  }
+}
+
+
+
+}
+
+
+// Evento del botón
+$("btnFeed").addEventListener("click", async () => {
+  // Asegurar que los checkboxes sigan funcionando
+  ["chkFeedPower", "chkFeedOnOff", "chkFeedGens"].forEach(id => {
+    $(id).addEventListener("change", () => {
+      if (feedSeries.length) drawFeedChart(feedSeries);
+    });
+  });
+
+  const statusEl = $("feedStatus");
+  try {
+    const file = $("fileFeed").files[0];
+    if (!file) return alert("Selecciona un archivo de alimentación.");
+    
+    // 🔹 Mostrar mensaje temporal
+    statusEl.textContent = "Procesando...";
+    statusEl.style.color = "#9fb3c8";
+
+    const aoa = await readAOA(file);
+    feedSeries = buildFeedFromAOA(aoa);
+    
+    render(); // sincronizado con brush global
+    
+    // 🔹 Éxito
+    statusEl.textContent = "✅ Cargado correctamente";
+    statusEl.style.color = "#00ff9d";
+
+    // Ocultar después de 2 segundos
+    setTimeout(() => { statusEl.textContent = ""; }, 2000);
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Error: " + err.message;
+    statusEl.style.color = "#ff6b6b";
+  }
+});
+
+["g1Max", "g1FP", "g2Max", "g2FP", "g3Max", "g3FP"].forEach(id => {
+  $(id).addEventListener("input", () => {
+    drawGeneratorLoad();
+    drawHistograms(); // 🔹 se actualizan los histogramas junto con el gráfico
+  });
+});
+
+
+      // primer render vacío
+      render();
+    
+// ==============================================
+// 🔹 FUNCIÓN: HISTOGRAMAS DE CARGA POR GENERADOR
+// ==============================================
+function drawHistograms() {
+  if (!energyByGen || !Object.keys(energyByGen).length) return;
+
+  const colors = ["#9aff00", "#7a5cff", "#ff5c93"];
+  const labels = ["Generador 1", "Generador 2", "Generador 3"];
+  const gMax = [
+    parseFloat($("g1Max").value) || 200,
+    parseFloat($("g2Max").value) || 200,
+    parseFloat($("g3Max").value) || 200
+  ];
+  const gFP = [
+    parseFloat($("g1FP").value) || 0.9,
+    parseFloat($("g2FP").value) || 0.9,
+    parseFloat($("g3FP").value) || 0.9
+  ];
+
+  labels.forEach((label, g) => {
+  const serie = energyByGen[label];
+  if (!serie?.length) return;
+
+  // 🔹 Solo puntos con carga > 3 kW
+  const activos = serie.filter(p => p.y > 3);
+  if (!activos.length) return;
+
+  const maxKW = gMax[g] * gFP[g];
+  const porcentajes = activos.map(p => Math.min(100, (p.y / maxKW) * 100));
+
+  const bins = Array(10).fill(0);
+  porcentajes.forEach(v => bins[Math.min(9, Math.floor(v / 10))]++);
+  const total = bins.reduce((a, b) => a + b, 0);
+  const freq = bins.map(v => (v / total) * 100);
+
+  // 🔹 Canvas adaptativo de alta resolución
+  const c = $("histG" + (g + 1));
+  const ctx = c.getContext("2d", { alpha: false });
+  const dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+
+  // Ajustar tamaño físico del canvas a su tamaño real en pantalla
+  c.width = rect.width * dpr;
+  c.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  // Fondo sólido y nitidez extrema
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  ctx.fillStyle = "#0c121b";
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Dimensiones del área de dibujo
+  const w = rect.width;
+  const h = rect.height;
+  const pad = 40;
+  const barW = (w - pad * 2) / bins.length;
+  const maxY = Math.max(...freq) * 1.2;
+
+  // Eje X
+  ctx.strokeStyle = "#22314a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.stroke();
+
+  // 🔹 Barras
+  freq.forEach((p, i) => {
+    const barH = (p / maxY) * (h - pad * 2);
+    const x = pad + i * barW;
+    const y = h - pad - barH;
+    ctx.fillStyle = colors[g];
+    ctx.fillRect(x + barW * 0.1, y, barW * 0.8, barH);
+  });
+
+  // 🔹 Eje inferior (0–100%) con texto anti-pixelado y escalado perfecto
+  ctx.save();
+  ctx.fillStyle = "#9fb3c8";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "center";
+  ctx.font = `${Math.max(10, rect.width / 95)}px 'Segoe UI', Roboto, system-ui`;
+  for (let i = 0; i <= 10; i++) {
+    const x = pad + i * barW;
+    ctx.fillText(i * 10 + "%", x + barW / 2, h - pad + 8);
+  }
+  ctx.restore();
+
+  // 🔹 Título del generador
+  ctx.save();
+  ctx.fillStyle = colors[g];
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.font = `bold ${Math.max(12, rect.width / 45)}px 'Segoe UI', Roboto, system-ui`;
+  ctx.fillText(label, w / 2, 18);
+  ctx.restore();
+}
+
+  
+  );
+}
+
+
+
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.getElementById('genFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, {type: 'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+
+    const pontones = new Map();
+    rows.forEach((row, i) => {
+      if (i === 0) return;
+      const desc = row[17];
+      const genName = row[4];
+      const kvaRaw = row[9];
+      if (!desc || !genName || !kvaRaw) return;
+
+      const match = String(desc).match(/\/\s*([^/]+?)\s*-\s*(PM|PH)/i);
+      if (!match) return;
+      const ponton = match[1].trim().toUpperCase();
+
+      const kvaMatch = String(kvaRaw).match(/(\d+[.,]?\d*)/);
+      const kva = kvaMatch ? Math.round(parseFloat(kvaMatch[1].replace(',', '.'))) : 0;
+
+      if (!pontones.has(ponton)) pontones.set(ponton, []);
+      pontones.get(ponton).push({gen: genName.toUpperCase(), kva});
+    });
+    const select = document.getElementById('pontonesSelect');
+select.innerHTML = '<option value="">Seleccionar.</option>';
+
+// 🔹 Ordenar alfabéticamente los nombres de pontones antes de agregarlos
+const sortedPontones = Array.from(pontones.keys()).sort((a, b) => a.localeCompare(b, 'es'));
+
+sortedPontones.forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  select.appendChild(opt);
+});
+
+
+    window.genPontonesData = pontones;
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('pontonesSelect').addEventListener('change', function() {
+  const name = this.value;
+  if (!name || !window.genPontonesData) return;
+  const gens = window.genPontonesData.get(name) || [];
+
+  let g1=0, g2=0, g3=0;
+  gens.forEach(g => {
+    if (g.gen.includes('1')) g1 = g.kva;
+    else if (g.gen.includes('2')) g2 = g.kva;
+    else if (g.gen.includes('3')) g3 = g.kva;
+  });
+
+  document.getElementById('g1Max').value = g1 || 0;
+  document.getElementById('g2Max').value = g2 || 0;
+  document.getElementById('g3Max').value = g3 || 0;
+  // 🔄 Forzar actualización de histogramas y gráficas
+['g1Max','g2Max','g3Max'].forEach(id => {
+  const el = document.getElementById(id);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+// 🔁 Recalcular indicadores y redibujar todo
+if (typeof drawGeneratorLoad === 'function') drawGeneratorLoad();
+if (typeof updateGenIndicators === 'function') updateGenIndicators();
+if (typeof drawHistograms === 'function') drawHistograms();
+
+});
+
+// ==========================================================
+// 🔹 Versión corregida: para sistemas sin rótulos "Generador"
+// ==========================================================
+function buildSingleSystemEnergy(aoa) {
+  if (!aoa || aoa.length < 9)
+    throw new Error("Archivo demasiado corto o formato incorrecto.");
+
+  // Limpieza inicial
+  while (aoa.length && aoa[0].every(v => v == null || String(v).trim() === ""))
+    aoa.shift();
+
+  const row6 = (aoa[0] || []).map(v => String(v ?? "").trim());
+  const row7 = (aoa[1] || []).map(v => String(v ?? "").trim());
+  const dataRows = aoa.slice(2);
+
+  // Buscar índice de FECHA
+  let fechaIdx = row7.findIndex(h => String(h || '').toLowerCase().includes('fecha'));
+  if (fechaIdx < 0) throw new Error("No se encontró columna FECHA.");
+
+  function norm(s) { return (s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+  // Índices de las tres fases
+  const f1 = row7.findIndex(h => norm(h).includes("potencia activa avg fase 1"));
+  const f2 = row7.findIndex(h => norm(h).includes("potencia activa avg fase 2"));
+  const f3 = row7.findIndex(h => norm(h).includes("potencia activa avg fase 3"));
+  if (f1 < 0 || f2 < 0 || f3 < 0)
+    throw new Error("No se encontraron columnas de fases 1/2/3.");
+
+  // Armar la serie total
+  const total = [];
+  for (const row of dataRows) {
+    const t = parseDateDDMM(row[fechaIdx]);
+    if (!t) continue;
+    const y = toNum(row[f1]) + toNum(row[f2]) + toNum(row[f3]);
+    if (isFinite(y)) total.push({ t, y });
+  }
+
+  total.sort((a, b) => a.t - b.t);
+  return total;
+}
+
+// ==========================================================
+// 🔸 SISTEMA DE FOTOPERIODO (idéntico a Alimentación, con ON/OFF y generadores)
+// ==========================================================
+let photoSeries = [];
+const PHOTO_ON_THRESHOLD = 3; // kW: >3 encendido = 1, <=3 apagado = 0
+
+// Carga de archivo y render
+$('btnPhoto').addEventListener('click', async () => {
+  try {
+    const file = $('filePhoto').files[0];
+    if (!file) throw new Error('Selecciona un archivo de Fotoperiodo.');
+    $('photoStatus').textContent = 'Procesando...';
+
+    const aoa = await readAOA(file);
+    // MISMA estructura que Alimentación: F1/F2/F3 y FECHA -> total kW
+    photoSeries = buildSingleSystemEnergy(aoa);
+
+    $('photoStatus').textContent = '✅ Cargado correctamente';
+    setTimeout(() => { $('photoStatus').textContent = ''; }, 1500);
+
+    // dibuja sincronizado al rango global
+    if (typeof render === 'function') render();
+    else drawPhotoChart(photoSeries);
+  } catch (err) {
+    console.error(err);
+    $('photoStatus').textContent = 'Error: ' + err.message;
+  }
+});
+
+// Checkboxes de capas
+['chkPhotoPower','chkPhotoOnOff','chkPhotoGens'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('change', () => {
+    if (photoSeries.length) drawPhotoChart(photoSeries);
+  });
+});
+
+// Leyenda (idéntica a Alimentación, colores iguales)
+(function buildPhotoLegend(){
+  const legend = $('legendPhoto');
+  if (!legend) return;
+  legend.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px;font-size:13px;">
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#00ffa3;display:inline-block;border-radius:2px;"></span>
+        Potencia activa
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#4ea1ff;display:inline-block;border-radius:2px;"></span>
+        Estado ON/OFF
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#9aff00;display:inline-block;border-radius:2px;"></span>
+        Generador 1
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#7a5cff;display:inline-block;border-radius:2px;"></span>
+        Generador 2
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="width:14px;height:4px;background:#ff5c93;display:inline-block;border-radius:2px;"></span>
+        Generador 3
+      </span>
+    </div>`;
+})();
+
+// Dibujo principal del módulo Fotoperiodo (potencia + ON/OFF + generadores activos)
+function drawPhotoChart(series) {
+  const c = $('chartPhoto');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+
+  // HiDPI
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== c.clientWidth * dpr || c.height !== c.clientHeight * dpr) {
+    c.width = c.clientWidth * dpr;
+    c.height = c.clientHeight * dpr;
+    ctx.scale(dpr, dpr);
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  if (!series || !series.length) return;
+
+  // Subconjunto visible por rango global
+  const visible = series.filter(p =>
+    (!viewStart || p.t >= viewStart) && (!viewEnd || p.t <= viewEnd)
+  );
+  if (!visible.length) return;
+
+  // Escalas Y (potencia)
+  let yMin = Math.min(...visible.map(p => p.y));
+  let yMax = Math.max(...visible.map(p => p.y));
+  if (yMax === yMin) yMax = yMin + 1;
+
+  const t0 = visible[0].t.getTime();
+  const t1 = visible[visible.length - 1].t.getTime();
+  const w = c.clientWidth;
+  const h = c.clientHeight;
+  const pad = 36;
+
+  // Ejes (usa tu util drawAxes del proyecto)
+  drawAxes(ctx, t0, t1, yMin, yMax, 0, 1, w, h);
+
+  // Flags de capas
+  const showPower = $('chkPhotoPower')?.checked ?? false;
+  const showOnOff = $('chkPhotoOnOff')?.checked ?? true;
+  const showGens  = $('chkPhotoGens')?.checked ?? true;
+
+  // 1) Potencia activa (línea)
+  if (showPower) {
+    ctx.strokeStyle = '#00ffa3';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    let started = false;
+    for (const p of visible) {
+      const x = mapX(p.t.getTime(), t0, t1, w);
+      const y = mapYLeft(p.y, yMin, yMax, h);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+// 2) ON/OFF como franja en la base del gráfico (0 abajo, 1 arriba)
+if (showOnOff) {
+  ctx.strokeStyle = '#4ea1ff';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  let started = false;
+  for (let i = 0; i < visible.length; i++) {
+    const d = visible[i];
+    const x = mapX(d.t.getTime(), t0, t1, w);
+    const yVal = d.y > PHOTO_ON_THRESHOLD ? 1 : 0;
+    // Escala 0–1 a todo el alto del gráfico (sin pads)
+    const y = mapYLeft(yVal * yMax, 0, yMax, h);
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+
+  // 3) Generadores activos (marcas durante encendido)
+  //   Logica: mismo mapping que Alimentación — busca qué generador tiene kW>5 cerca del timestamp
+  //   y pinta un pequeño segmento en el centro (verde/morado/rosa). Si son varios, mezcla de colores.
+  if (showGens && typeof energyByGen !== 'undefined' && genKeys?.length) {
+    const colors = {
+      'Generador 1': '#9aff00',
+      'Generador 2': '#7a5cff',
+      'Generador 3': '#ff5c93'
+    };
+    const dt = (visible[1]?.t - visible[0]?.t) || 60000; // 1 min por defecto
+    for (let i = 0; i < visible.length; i++) {
+      const p = visible[i];
+      if (p.y <= PHOTO_ON_THRESHOLD) continue; // solo mientras fotoperiodo está encendido
+      const t = p.t.getTime();
+      const activos = genKeys.filter(k => {
+        const serieG = energyByGen[k];
+        if (!serieG?.length) return false;
+        const near = serieG.find(g => Math.abs(g.t - t) < dt * 3);
+        return near && near.y > 5; // >5 kW ~ generador activo
+      });
+
+      if (!activos.length) continue;
+
+      const col = (activos.length === 1)
+        ? colors[activos[0]]
+        : mezclaRGB(activos.map(k => colors[k])); // misma mezcla usada en Alimentación
+
+      const x = pad + ((t - t0) / (t1 - t0)) * (w - 2 * pad);
+      const y = h - pad - 0.5 * (h - 2 * pad);
+      ctx.fillStyle = col;
+      ctx.fillRect(x - 1, y - 2, 2, 4);
+    }
+  }
+
+  // Indicadores del módulo (contando solo cuando y>threshold)
+  updatePhotoIndicators(visible);
+}
+
+// Indicadores (corrigiendo: horas y promedios SOLO en ON)
+function updatePhotoIndicators(visible) {
+  if (!visible?.length) return;
+
+  // Filtrado ON
+  const on = visible.filter(p => p.y > PHOTO_ON_THRESHOLD);
+
+  // kWh (trapezoidal) — se calcula sobre toda la serie visible, pero
+  // si quieres sólo durante ON, cambia dataBase = on;
+  const dataBase = visible; // deja esto visible si deseas coherencia con Alimentación
+  const kwh = (() => {
+    let tot = 0;
+    for (let i = 0; i < dataBase.length - 1; i++) {
+      const p1 = dataBase[i], p2 = dataBase[i+1];
+      const dh = (p2.t - p1.t) / 3600000;
+      if (!isFinite(dh) || dh <= 0) continue;
+      tot += ((p1.y + p2.y) / 2) * dh;
+    }
+    return tot;
+  })();
+// Potencia promedio: SOLO mientras está encendido (>3 kW)
+const onData = visible.filter(p => p.y > PHOTO_ON_THRESHOLD);
+const avgPower = onData.length
+  ? onData.reduce((a, b) => a + b.y, 0) / onData.length
+  : 0;
+
+  const maxPower = Math.max(...dataBase.map(p => p.y));
+
+  // Horas totales SOLO cuando está ON: suma de intervalos consecutivos ON
+  let hoursOn = 0;
+  for (let i = 0; i < on.length - 1; i++) {
+    const dh = (on[i+1].t - on[i].t) / 3600000;
+    if (dh > 0) hoursOn += dh;
+  }
+
+  // Días con ON vs días totales
+  const daysAll = new Set(visible.map(p => p.t.toISOString().slice(0,10))).size;
+  const daysOn  = new Set(on.map(p => p.t.toISOString().slice(0,10))).size;
+  const daysOff = Math.max(0, daysAll - daysOn);
+
+  const dailyAvg = daysOn > 0 ? kwh / daysOn : 0;
+ 
+
+  // Consumo estimado (usa tu eficiencia global del panel principal)
+  const effTxt = $('txtEff')?.textContent || '';
+  const eff = parseFloat(effTxt.replace(',', '.'));
+  const litros = (isFinite(eff) && eff > 0) ? (kwh / eff) : NaN;
+
+  // Distribución por generador (mientras Fotoperiodo está ON)
+  if (typeof energyByGen !== 'undefined' && genKeys?.length) {
+    const labels = genKeys;
+    const gHours = new Array(labels.length).fill(0);
+    if (on.length > 1) {
+      const dtH = (on[1].t - on[0].t) / 3600000; // paso medio en horas
+      for (let i = 0; i < on.length; i++) {
+        const t = on[i].t.getTime();
+        labels.forEach((name, idx) => {
+          const serie = energyByGen[name] || [];
+          // ventana de ±(dtH * 3) horas en ms
+          const near = serie.find(p => Math.abs(p.t - t) < (dtH * 3) * 3600000);
+          if (near && near.y > 5) gHours[idx] += Math.max(dtH, 0);
+        });
+      }
+      const totalGenHrs = gHours.reduce((a,b)=>a+b,0) || 0;
+      labels.forEach((_, idx) => {
+  const hrs = gHours[idx];
+  const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
+
+  // Horas → entero sin decimal
+  $(`photoG${idx+1}hrs`).textContent = hrs ? Math.round(hrs) + ' h' : '—';
+
+  // Porcentaje → con 1 decimal
+  $(`photoG${idx+1}pct`).textContent = totalGenHrs ? pct.toFixed(1) + ' %' : '—';
+});
+
+    }
+  }
+// --- Horas promedio de funcionamiento (solo sesiones ON>2h) ---
+let sessions = [];
+let inSession = false;
+let startTime = null;
+
+for (let i = 1; i < visible.length; i++) {
+  const prev = visible[i - 1];
+  const curr = visible[i];
+
+  const prevOn = prev.y > PHOTO_ON_THRESHOLD;
+  const currOn = curr.y > PHOTO_ON_THRESHOLD;
+
+  // Inicio de sesión
+  if (!prevOn && currOn) {
+    inSession = true;
+    startTime = curr.t;
+  }
+
+  // Fin de sesión
+  if (inSession && prevOn && !currOn) {
+    const durH = (curr.t - startTime) / 3600000; // ms→h
+    if (durH >= 2) sessions.push(durH);
+    inSession = false;
+    startTime = null;
+  }
+}
+
+// Si quedó encendido al final del rango visible
+if (inSession && startTime) {
+  const durH = (visible[visible.length - 1].t - startTime) / 3600000;
+  if (durH >= 2) sessions.push(durH);
+}
+
+const hoursAvgRun = sessions.length
+  ? sessions.reduce((a, b) => a + b, 0) / sessions.length
+  : 0;
+
+$('photoHrsDay').textContent = hoursAvgRun.toFixed(1);
+
+  // Pintar indicadores
+  $('photoInicio').textContent   = visible[0].t.toLocaleString('es-CL');
+  $('photoFin').textContent      = visible[visible.length - 1].t.toLocaleString('es-CL');
+  $('photoKWh').textContent = Math.round(kwh).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  $('photoAvg').textContent = avgPower.toFixed(1) + ' kW';
+$('photoMax').textContent = maxPower.toFixed(1) + ' kW';
+$('photoHrsUse').textContent = Math.round(hoursOn);
+   
+  $('photoDaysOff').textContent  = String(daysOff);
+  $('photoDailyAvg').textContent = Math.round(dailyAvg) + ' kWh/día';
+
+  $('photoLitros').textContent = isFinite(litros)
+  ? Math.round(litros) + ' L'
+  : '—';
+
+}
+
+// Mezcla de colores (la misma que usas en Alimentación)
+function mezclaRGB(cols) {
+  const rgb = cols.map(c => {
+    const v = parseInt(c.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  });
+  const avg = [0,0,0];
+  rgb.forEach(r => { avg[0]+=r[0]; avg[1]+=r[1]; avg[2]+=r[2]; });
+  avg[0]/=rgb.length; avg[1]/=rgb.length; avg[2]/=rgb.length;
+  return `rgb(${avg.map(v=>Math.round(v)).join(',')})`;
+}
+
+// ==========================================================
+// 📸 Captura de pantalla completa en BMP (corrige inputs con onclone)
+// ==========================================================
+document.getElementById('btnCaptura').addEventListener('click', () => {
+ // Intentar obtener el nombre del centro desde distintas fuentes
+let nombreCentro = 'Centro';
+const nombrePonton = document.getElementById('pontonesSelect')?.value || 'Ponton';
+
+// 1️⃣ Si hay un elemento que muestra el nombre del centro en pantalla
+const centroLabel = document.querySelector('#centroNombre, .centro-nombre, .titulo-centro, [data-centro]');
+if (centroLabel) {
+  nombreCentro = (centroLabel.textContent || centroLabel.value || '').trim() || 'Centro';
+}
+
+// 2️⃣ Si hay un input oculto o variable global
+if (window.centroActual && typeof window.centroActual === 'string') {
+  nombreCentro = window.centroActual.trim();
+}
+
+const nombreArchivo = `${nombreCentro}_${nombrePonton}.bmp`;
+
+
+  html2canvas(document.body, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#0b0f17',
+
+    // 🔹 Antes de renderizar, modificamos el DOM CLONADO (no el real)
+    onclone: (clonedDoc) => {
+      const win = clonedDoc.defaultView;
+
+      // Reemplazar inputs / selects por spans con el valor visible
+      clonedDoc.querySelectorAll('input, textarea, select').forEach((el) => {
+        const span = clonedDoc.createElement('span');
+
+        // Texto a mostrar
+        let txt = '';
+        if (el.tagName === 'SELECT') {
+          const opt = el.options[el.selectedIndex];
+          txt = (opt && (opt.text || opt.value)) || '';
+        } else {
+          txt = el.value || el.getAttribute('placeholder') || '';
+        }
+        span.textContent = txt;
+
+        // Copiar estilos básicos para que se vea igual
+        const cs = win.getComputedStyle(el);
+        span.style.display     = 'inline-block';
+        span.style.boxSizing   = 'border-box';
+        span.style.width       = cs.width;
+        span.style.height      = cs.height;
+        span.style.padding     = cs.padding;
+        span.style.border      = `${cs.borderTopWidth} solid ${cs.borderTopColor}`;
+        span.style.borderRadius= cs.borderRadius;
+        span.style.background  = cs.backgroundColor || '#0d1524';
+        span.style.color       = cs.color || '#e7eef7';
+        span.style.font        = cs.font;
+        span.style.lineHeight  = cs.lineHeight;
+        span.style.textAlign   = cs.textAlign || 'left';
+        span.style.whiteSpace  = 'nowrap';
+        span.style.overflow    = 'hidden';
+
+        el.parentNode.replaceChild(span, el);
+      });
+    },
+  }).then((canvas) => {
+    canvas.toBlob((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombreArchivo;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, 'image/bmp');
+  });
+});
+
+
+
+
+</script>
+
+
+
+  </body>
+</html>
