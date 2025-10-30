@@ -417,8 +417,6 @@
 
 
 
-<!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
-<div class="card">
 
     <!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
 <div class="card">
@@ -561,6 +559,126 @@
     </tr>
   </tbody>
 </table>
+</div>
+
+<!-- 🔹 Nuevo módulo: Sistema de Ensilaje -->
+<div class="card">
+  <h3 class="section-title">Sistema de Ensilaje</h3>
+  <div class="row">
+    <div class="col">
+      <label>Archivo <b>ENSILAJE</b> (XLSX/CSV)</label>
+      <input id="fileEnsilaje" type="file" accept=".xlsx,.xls,.csv" />
+    </div>
+    <div class="col" style="align-self:end;">
+      <button id="btnEnsilaje" class="btn">Cargar y graficar</button>
+      <span id="ensStatus" class="small" style="margin-left:10px;"></span>
+    </div>
+  </div>
+
+  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+    <span class="badge"><input id="chkEnsPower" type="checkbox"> Potencia activa (kW)</span>
+    <span class="badge"><input id="chkEnsOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
+    <span class="badge"><input id="chkEnsGens" type="checkbox" checked> Generadores activos</span>
+  </div>
+
+  <canvas id="chartEnsilaje" width="1100" height="320" style="margin-top:10px;"></canvas>
+  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de ensilaje.</div>
+  <div id="legendEnsilaje" style="margin-top:8px;"></div>
+
+  <table class="tbl" style="margin-top:10px;">
+    <tbody>
+      <tr><th>Inicio</th><td id="ensInicio">—</td><th>Fin</th><td id="ensFin">—</td></tr>
+      <tr><th>⚡ Energía utilizada (kWh)</th><td id="ensKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="ensAvg">—</td></tr>
+      <tr><th>🔝 Potencia máxima</th><td id="ensMax">—</td><td colspan="2"></td></tr>
+      <tr><th>🕒 Horas de uso totales</th><td id="ensHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="ensHrsDay">—</td></tr>
+      <tr><th>📆 Días sin funcionamiento</th><td id="ensDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="ensDailyAvg">—</td></tr>
+      <tr><th>⛽ Consumo estimado (L)</th><td id="ensLitros" colspan="3">—</td></tr>
+      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
+      <tr><th>Generador 1</th><td id="ensG1hrs">—</td><td id="ensG1pct" colspan="2">—</td></tr>
+      <tr><th>Generador 2</th><td id="ensG2hrs">—</td><td id="ensG2pct" colspan="2">—</td></tr>
+      <tr><th>Generador 3</th><td id="ensG3hrs">—</td><td id="ensG3pct" colspan="2">—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 🔹 Nuevo módulo: Sistema de Habitabilidad -->
+<div class="card">
+  <h3 class="section-title">Sistema de Habitabilidad</h3>
+  <div class="row">
+    <div class="col">
+      <label>Archivo <b>HABITABILIDAD</b> (XLSX/CSV)</label>
+      <input id="fileHabitabilidad" type="file" accept=".xlsx,.xls,.csv" />
+    </div>
+    <div class="col" style="align-self:end;">
+      <button id="btnHabitabilidad" class="btn">Cargar y graficar</button>
+      <span id="habStatus" class="small" style="margin-left:10px;"></span>
+    </div>
+  </div>
+
+  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+    <span class="badge"><input id="chkHabPower" type="checkbox"> Potencia activa (kW)</span>
+    <span class="badge"><input id="chkHabOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
+    <span class="badge"><input id="chkHabGens" type="checkbox" checked> Generadores activos</span>
+  </div>
+
+  <canvas id="chartHabitabilidad" width="1100" height="320" style="margin-top:10px;"></canvas>
+  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de habitabilidad.</div>
+  <div id="legendHabitabilidad" style="margin-top:8px;"></div>
+
+  <table class="tbl" style="margin-top:10px;">
+    <tbody>
+      <tr><th>Inicio</th><td id="habInicio">—</td><th>Fin</th><td id="habFin">—</td></tr>
+      <tr><th>⚡ Energía utilizada (kWh)</th><td id="habKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="habAvg">—</td></tr>
+      <tr><th>🔝 Potencia máxima</th><td id="habMax">—</td><td colspan="2"></td></tr>
+      <tr><th>🕒 Horas de uso totales</th><td id="habHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="habHrsDay">—</td></tr>
+      <tr><th>📆 Días sin funcionamiento</th><td id="habDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="habDailyAvg">—</td></tr>
+      <tr><th>⛽ Consumo estimado (L)</th><td id="habLitros" colspan="3">—</td></tr>
+      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
+      <tr><th>Generador 1</th><td id="habG1hrs">—</td><td id="habG1pct" colspan="2">—</td></tr>
+      <tr><th>Generador 2</th><td id="habG2hrs">—</td><td id="habG2pct" colspan="2">—</td></tr>
+      <tr><th>Generador 3</th><td id="habG3hrs">—</td><td id="habG3pct" colspan="2">—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 🔹 Nuevo módulo: Sistema de Compresores -->
+<div class="card">
+  <h3 class="section-title">Sistema de Compresores</h3>
+  <div class="row">
+    <div class="col">
+      <label>Archivo <b>COMPRESORES</b> (XLSX/CSV)</label>
+      <input id="fileCompresores" type="file" accept=".xlsx,.xls,.csv" />
+    </div>
+    <div class="col" style="align-self:end;">
+      <button id="btnCompresores" class="btn">Cargar y graficar</button>
+      <span id="compStatus" class="small" style="margin-left:10px;"></span>
+    </div>
+  </div>
+
+  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+    <span class="badge"><input id="chkCompPower" type="checkbox"> Potencia activa (kW)</span>
+    <span class="badge"><input id="chkCompOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
+    <span class="badge"><input id="chkCompGens" type="checkbox" checked> Generadores activos</span>
+  </div>
+
+  <canvas id="chartCompresores" width="1100" height="320" style="margin-top:10px;"></canvas>
+  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de compresores.</div>
+  <div id="legendCompresores" style="margin-top:8px;"></div>
+
+  <table class="tbl" style="margin-top:10px;">
+    <tbody>
+      <tr><th>Inicio</th><td id="compInicio">—</td><th>Fin</th><td id="compFin">—</td></tr>
+      <tr><th>⚡ Energía utilizada (kWh)</th><td id="compKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="compAvg">—</td></tr>
+      <tr><th>🔝 Potencia máxima</th><td id="compMax">—</td><td colspan="2"></td></tr>
+      <tr><th>🕒 Horas de uso totales</th><td id="compHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="compHrsDay">—</td></tr>
+      <tr><th>📆 Días sin funcionamiento</th><td id="compDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="compDailyAvg">—</td></tr>
+      <tr><th>⛽ Consumo estimado (L)</th><td id="compLitros" colspan="3">—</td></tr>
+      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
+      <tr><th>Generador 1</th><td id="compG1hrs">—</td><td id="compG1pct" colspan="2">—</td></tr>
+      <tr><th>Generador 2</th><td id="compG2hrs">—</td><td id="compG2pct" colspan="2">—</td></tr>
+      <tr><th>Generador 3</th><td id="compG3hrs">—</td><td id="compG3pct" colspan="2">—</td></tr>
+    </tbody>
+  </table>
 </div>
 
 
