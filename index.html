@@ -298,6 +298,12 @@
   <input type="file" id="genFile" accept=".xlsx,.csv" style="background:#0b0f17; color:#e7eef7; border:none; padding:4px 6px; border-radius:6px;">
 </div>
 <div>
+  <label for="centrosSelect" style="color:#9fb3c8; font-size:14px;">🔹 Centro:</label>
+  <select id="centrosSelect" style="background:#0b0f17; color:#e7eef7; border:1px solid #22314a; border-radius:6px; padding:4px 6px; width:200px;">
+    <option value="">Seleccionar centro...</option>
+  </select>
+</div>
+<div>
   <label for="pontonesSelect" style="color:#9fb3c8; font-size:14px;">🔹 Pontón:</label>
   <select id="pontonesSelect" style="background:#0b0f17; color:#e7eef7; border:1px solid #22314a; border-radius:6px; padding:4px 6px; width:200px;">
     <option value="">Seleccionar...</option>
@@ -2137,7 +2143,7 @@ function updateGenIndicators() {
     // Filtrar solo puntos activos (>5%)
     const activos = pctArray
       .map((v, idx) => ({ v, t: data[idx].t }))
-      .filter(p => p.v > 5);
+      .filter(p => p.v > 0.5);
 
     if (!activos.length) {
       $("g" + (i + 1) + "MaxPct").textContent = "—";
@@ -2364,7 +2370,7 @@ function drawHistograms() {
     if (!serie?.length) return;
 
     // 🔹 Solo puntos con carga > 3 kW
-    const activos = serie.filter(p => p.y > 3);
+    const activos = serie.filter(p => p.y > 0.2);
     if (!activos.length) return;
 
     const maxKW = gMax[g] * gFP[g];
@@ -2483,6 +2489,17 @@ document.getElementById('genFile').addEventListener('change', function(e) {
 
       if (!pontones.has(ponton)) pontones.set(ponton, []);
       pontones.get(ponton).push({gen: genName.toUpperCase(), kva});
+      // 🔹 Extraer centro y pontón desde la descripción (columna R)
+const partes = String(desc).split('/').map(s => s.trim()).filter(Boolean);
+if (partes.length >= 5) {
+  const centro = partes[3].toUpperCase();
+  const pontonRaw = partes[4];
+  const pontonName = pontonRaw.split('-')[0].trim().toUpperCase();
+
+  if (!window.centrosMap) window.centrosMap = new Map();
+  window.centrosMap.set(centro, pontonName);
+}
+
     });
     // 🔹 Ordenar alfabéticamente los nombres de pontones antes de llenar el selector
 const sortedPontones = Array.from(pontones.keys()).sort((a, b) => a.localeCompare(b, 'es'));
@@ -2495,6 +2512,20 @@ const sortedPontones = Array.from(pontones.keys()).sort((a, b) => a.localeCompar
   opt.textContent = name;
   select.appendChild(opt);
 });
+// 🔹 Llenar el selector de centros (orden alfabético)
+if (window.centrosMap) {
+  const centrosSelect = document.getElementById('centrosSelect');
+  centrosSelect.innerHTML = '<option value="">Seleccionar centro...</option>';
+
+  const sortedCentros = Array.from(window.centrosMap.keys()).sort((a, b) => a.localeCompare(b, 'es'));
+  sortedCentros.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    centrosSelect.appendChild(opt);
+  });
+}
+
 
     window.genPontonesData = pontones;
   };
@@ -2519,6 +2550,21 @@ document.getElementById('pontonesSelect').addEventListener('change', function() 
   drawHistograms();
   render();
 });
+// 🔹 Cuando se selecciona un centro, sincronizar el pontón y actualizar todo
+document.getElementById('centrosSelect').addEventListener('change', function() {
+  const centro = this.value;
+  if (!centro || !window.centrosMap) return;
+
+  const ponton = window.centrosMap.get(centro);
+  if (!ponton) return;
+
+  const selectPontones = document.getElementById('pontonesSelect');
+  selectPontones.value = ponton;
+
+  // Simula el cambio de pontón → actualiza KVA, histogramas, gráficos
+  selectPontones.dispatchEvent(new Event('change'));
+});
+
 
 // ==========================================================
 // 🔹 Versión corregida: para sistemas sin rótulos "Generador"
