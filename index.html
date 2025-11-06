@@ -2534,6 +2534,27 @@ if (window.centrosMap) {
 
 document.getElementById('pontonesSelect').addEventListener('change', function() {
   const name = this.value;
+    // 🔹 Limpiar variables y gráficos previos
+    if (window.energyByGen) {
+    for (let g = 1; g <= 3; g++) {
+      const c = $("histG" + g);
+      if (!c) continue; // seguridad por si falta un canvas
+      const ctx = c.getContext("2d", { alpha: false });
+      const rect = c.getBoundingClientRect();
+
+      // Limpiar canvas y fondo
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = "#0c121b";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+
+      // Resetear indicadores de texto
+      $(`g${g}MaxPct`).textContent = "—";
+      $(`g${g}MinPct`).textContent = "—";
+      $(`g${g}AvgPct`).textContent = "—";
+      $(`g${g}Hours`).textContent = "—";
+    }
+  }
+
   if (!name || !window.genPontonesData) return;
   const gens = window.genPontonesData.get(name) || [];
 
@@ -2547,6 +2568,22 @@ document.getElementById('pontonesSelect').addEventListener('change', function() 
   document.getElementById('g1Max').value = g1 || 0;
   document.getElementById('g2Max').value = g2 || 0;
   document.getElementById('g3Max').value = g3 || 0;
+    // 🔹 Limpiar el Generador 3 si no existe (por ejemplo, solo hay 2)
+    if (!g3 || g3 === 0) {
+    const c = $("histG3");
+    if (c) {
+      const ctx = c.getContext("2d", { alpha: false });
+      const rect = c.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = "#0c121b";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+    }
+    if ($("g3MaxPct")) $("g3MaxPct").textContent = "—";
+    if ($("g3MinPct")) $("g3MinPct").textContent = "—";
+    if ($("g3AvgPct")) $("g3AvgPct").textContent = "—";
+    if ($("g3Hours")) $("g3Hours").textContent = "—";
+  }
+
   drawHistograms();
   render();
 });
