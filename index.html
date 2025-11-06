@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
   <head>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Analizador Telemetría — Limpio (Energía + Combustible)</title>
@@ -183,13 +181,6 @@
     <button id="btnReset" class="btn ghost">Ver todo</button>
     <span id="status" class="small"></span>
   </div>
-<!-- 📸 Botón de captura de pantalla -->
-<div style="margin-top:10px;">
-<button id="btnCaptura"
-  style="background:#4ea1ff;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">
-  📸 Capturar pantalla
-</button>
-</div>
 
   <!-- 🔹 Selector de rango de fechas a la derecha -->
   <div
@@ -417,6 +408,8 @@
 
 
 
+<!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
+<div class="card">
 
     <!-- 🔹 Nuevo módulo: Sistema de Alimentación -->
 <div class="card">
@@ -535,7 +528,7 @@
     </tr>
     <tr>
       <th>🕒 Horas de uso totales</th><td id="photoHrsUse">—</td>
-      <th>⏳ Horas promedio de funcionamiento</th><td id="photoHrsDay">—</td>
+      <th>⏳ Horas promedio por día</th><td id="photoHrsDay">—</td>
     </tr>
     <tr>
       <th>📆 Días sin funcionamiento</th><td id="photoDaysOff">—</td>
@@ -559,126 +552,6 @@
     </tr>
   </tbody>
 </table>
-</div>
-
-<!-- 🔹 Nuevo módulo: Sistema de Ensilaje -->
-<div class="card">
-  <h3 class="section-title">Sistema de Ensilaje</h3>
-  <div class="row">
-    <div class="col">
-      <label>Archivo <b>ENSILAJE</b> (XLSX/CSV)</label>
-      <input id="fileEnsilaje" type="file" accept=".xlsx,.xls,.csv" />
-    </div>
-    <div class="col" style="align-self:end;">
-      <button id="btnEnsilaje" class="btn">Cargar y graficar</button>
-      <span id="ensStatus" class="small" style="margin-left:10px;"></span>
-    </div>
-  </div>
-
-  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-    <span class="badge"><input id="chkEnsPower" type="checkbox"> Potencia activa (kW)</span>
-    <span class="badge"><input id="chkEnsOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
-    <span class="badge"><input id="chkEnsGens" type="checkbox" checked> Generadores activos</span>
-  </div>
-
-  <canvas id="chartEnsilaje" width="1100" height="320" style="margin-top:10px;"></canvas>
-  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de ensilaje.</div>
-  <div id="legendEnsilaje" style="margin-top:8px;"></div>
-
-  <table class="tbl" style="margin-top:10px;">
-    <tbody>
-      <tr><th>Inicio</th><td id="ensInicio">—</td><th>Fin</th><td id="ensFin">—</td></tr>
-      <tr><th>⚡ Energía utilizada (kWh)</th><td id="ensKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="ensAvg">—</td></tr>
-      <tr><th>🔝 Potencia máxima</th><td id="ensMax">—</td><td colspan="2"></td></tr>
-      <tr><th>🕒 Horas de uso totales</th><td id="ensHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="ensHrsDay">—</td></tr>
-      <tr><th>📆 Días sin funcionamiento</th><td id="ensDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="ensDailyAvg">—</td></tr>
-      <tr><th>⛽ Consumo estimado (L)</th><td id="ensLitros" colspan="3">—</td></tr>
-      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
-      <tr><th>Generador 1</th><td id="ensG1hrs">—</td><td id="ensG1pct" colspan="2">—</td></tr>
-      <tr><th>Generador 2</th><td id="ensG2hrs">—</td><td id="ensG2pct" colspan="2">—</td></tr>
-      <tr><th>Generador 3</th><td id="ensG3hrs">—</td><td id="ensG3pct" colspan="2">—</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<!-- 🔹 Nuevo módulo: Sistema de Habitabilidad -->
-<div class="card">
-  <h3 class="section-title">Sistema de Habitabilidad</h3>
-  <div class="row">
-    <div class="col">
-      <label>Archivo <b>HABITABILIDAD</b> (XLSX/CSV)</label>
-      <input id="fileHabitabilidad" type="file" accept=".xlsx,.xls,.csv" />
-    </div>
-    <div class="col" style="align-self:end;">
-      <button id="btnHabitabilidad" class="btn">Cargar y graficar</button>
-      <span id="habStatus" class="small" style="margin-left:10px;"></span>
-    </div>
-  </div>
-
-  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-    <span class="badge"><input id="chkHabPower" type="checkbox"> Potencia activa (kW)</span>
-    <span class="badge"><input id="chkHabOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
-    <span class="badge"><input id="chkHabGens" type="checkbox" checked> Generadores activos</span>
-  </div>
-
-  <canvas id="chartHabitabilidad" width="1100" height="320" style="margin-top:10px;"></canvas>
-  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de habitabilidad.</div>
-  <div id="legendHabitabilidad" style="margin-top:8px;"></div>
-
-  <table class="tbl" style="margin-top:10px;">
-    <tbody>
-      <tr><th>Inicio</th><td id="habInicio">—</td><th>Fin</th><td id="habFin">—</td></tr>
-      <tr><th>⚡ Energía utilizada (kWh)</th><td id="habKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="habAvg">—</td></tr>
-      <tr><th>🔝 Potencia máxima</th><td id="habMax">—</td><td colspan="2"></td></tr>
-      <tr><th>🕒 Horas de uso totales</th><td id="habHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="habHrsDay">—</td></tr>
-      <tr><th>📆 Días sin funcionamiento</th><td id="habDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="habDailyAvg">—</td></tr>
-      <tr><th>⛽ Consumo estimado (L)</th><td id="habLitros" colspan="3">—</td></tr>
-      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
-      <tr><th>Generador 1</th><td id="habG1hrs">—</td><td id="habG1pct" colspan="2">—</td></tr>
-      <tr><th>Generador 2</th><td id="habG2hrs">—</td><td id="habG2pct" colspan="2">—</td></tr>
-      <tr><th>Generador 3</th><td id="habG3hrs">—</td><td id="habG3pct" colspan="2">—</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<!-- 🔹 Nuevo módulo: Sistema de Compresores -->
-<div class="card">
-  <h3 class="section-title">Sistema de Compresores</h3>
-  <div class="row">
-    <div class="col">
-      <label>Archivo <b>COMPRESORES</b> (XLSX/CSV)</label>
-      <input id="fileCompresores" type="file" accept=".xlsx,.xls,.csv" />
-    </div>
-    <div class="col" style="align-self:end;">
-      <button id="btnCompresores" class="btn">Cargar y graficar</button>
-      <span id="compStatus" class="small" style="margin-left:10px;"></span>
-    </div>
-  </div>
-
-  <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-    <span class="badge"><input id="chkCompPower" type="checkbox"> Potencia activa (kW)</span>
-    <span class="badge"><input id="chkCompOnOff" type="checkbox" checked> Encendido/Apagado (ON/OFF)</span>
-    <span class="badge"><input id="chkCompGens" type="checkbox" checked> Generadores activos</span>
-  </div>
-
-  <canvas id="chartCompresores" width="1100" height="320" style="margin-top:10px;"></canvas>
-  <div class="small">Curva de <b>potencia activa (kW)</b> del sistema de compresores.</div>
-  <div id="legendCompresores" style="margin-top:8px;"></div>
-
-  <table class="tbl" style="margin-top:10px;">
-    <tbody>
-      <tr><th>Inicio</th><td id="compInicio">—</td><th>Fin</th><td id="compFin">—</td></tr>
-      <tr><th>⚡ Energía utilizada (kWh)</th><td id="compKWh">—</td><th>🔋 Potencia promedio (kW)</th><td id="compAvg">—</td></tr>
-      <tr><th>🔝 Potencia máxima</th><td id="compMax">—</td><td colspan="2"></td></tr>
-      <tr><th>🕒 Horas de uso totales</th><td id="compHrsUse">—</td><th>⏳ Horas promedio por día</th><td id="compHrsDay">—</td></tr>
-      <tr><th>📆 Días sin funcionamiento</th><td id="compDaysOff">—</td><th>💡 Consumo diario promedio (kWh/día)</th><td id="compDailyAvg">—</td></tr>
-      <tr><th>⛽ Consumo estimado (L)</th><td id="compLitros" colspan="3">—</td></tr>
-      <tr><th colspan="4" style="text-align:center;">🧩 Distribución por generador</th></tr>
-      <tr><th>Generador 1</th><td id="compG1hrs">—</td><td id="compG1pct" colspan="2">—</td></tr>
-      <tr><th>Generador 2</th><td id="compG2hrs">—</td><td id="compG2pct" colspan="2">—</td></tr>
-      <tr><th>Generador 3</th><td id="compG3hrs">—</td><td id="compG3pct" colspan="2">—</td></tr>
-    </tbody>
-  </table>
 </div>
 
 
@@ -2262,7 +2135,7 @@ function updateGenIndicators() {
     // Filtrar solo puntos activos (>5%)
     const activos = pctArray
       .map((v, idx) => ({ v, t: data[idx].t }))
-      .filter(p => p.v > 0);
+      .filter(p => p.v > 5);
 
     if (!activos.length) {
       $("g" + (i + 1) + "MaxPct").textContent = "—";
@@ -2602,19 +2475,15 @@ document.getElementById('genFile').addEventListener('change', function(e) {
       if (!pontones.has(ponton)) pontones.set(ponton, []);
       pontones.get(ponton).push({gen: genName.toUpperCase(), kva});
     });
+
     const select = document.getElementById('pontonesSelect');
-select.innerHTML = '<option value="">Seleccionar.</option>';
-
-// 🔹 Ordenar alfabéticamente los nombres de pontones antes de agregarlos
-const sortedPontones = Array.from(pontones.keys()).sort((a, b) => a.localeCompare(b, 'es'));
-
-sortedPontones.forEach(name => {
-  const opt = document.createElement('option');
-  opt.value = name;
-  opt.textContent = name;
-  select.appendChild(opt);
-});
-
+    select.innerHTML = '<option value="">Seleccionar...</option>';
+    pontones.forEach((_, name) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
 
     window.genPontonesData = pontones;
   };
@@ -2636,17 +2505,6 @@ document.getElementById('pontonesSelect').addEventListener('change', function() 
   document.getElementById('g1Max').value = g1 || 0;
   document.getElementById('g2Max').value = g2 || 0;
   document.getElementById('g3Max').value = g3 || 0;
-  // 🔄 Forzar actualización de histogramas y gráficas
-['g1Max','g2Max','g3Max'].forEach(id => {
-  const el = document.getElementById(id);
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-});
-
-// 🔁 Recalcular indicadores y redibujar todo
-if (typeof drawGeneratorLoad === 'function') drawGeneratorLoad();
-if (typeof updateGenIndicators === 'function') updateGenIndicators();
-if (typeof drawHistograms === 'function') drawHistograms();
-
 });
 
 // ==========================================================
@@ -2910,7 +2768,7 @@ const avgPower = onData.length
   const daysOff = Math.max(0, daysAll - daysOn);
 
   const dailyAvg = daysOn > 0 ? kwh / daysOn : 0;
- 
+  const hoursPerDay = daysOn > 0 ? hoursOn / daysOn : 0;
 
   // Consumo estimado (usa tu eficiencia global del panel principal)
   const effTxt = $('txtEff')?.textContent || '';
@@ -2934,72 +2792,25 @@ const avgPower = onData.length
       }
       const totalGenHrs = gHours.reduce((a,b)=>a+b,0) || 0;
       labels.forEach((_, idx) => {
-  const hrs = gHours[idx];
-  const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
-
-  // Horas → entero sin decimal
-  $(`photoG${idx+1}hrs`).textContent = hrs ? Math.round(hrs) + ' h' : '—';
-
-  // Porcentaje → con 1 decimal
-  $(`photoG${idx+1}pct`).textContent = totalGenHrs ? pct.toFixed(1) + ' %' : '—';
-});
-
+        const hrs = gHours[idx];
+        const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
+        $(`photoG${idx+1}hrs`).textContent = hrs ? hrs.toFixed(1) + ' h' : '—';
+        $(`photoG${idx+1}pct`).textContent = totalGenHrs ? pct.toFixed(1) + ' %' : '—';
+      });
     }
   }
-// --- Horas promedio de funcionamiento (solo sesiones ON>2h) ---
-let sessions = [];
-let inSession = false;
-let startTime = null;
-
-for (let i = 1; i < visible.length; i++) {
-  const prev = visible[i - 1];
-  const curr = visible[i];
-
-  const prevOn = prev.y > PHOTO_ON_THRESHOLD;
-  const currOn = curr.y > PHOTO_ON_THRESHOLD;
-
-  // Inicio de sesión
-  if (!prevOn && currOn) {
-    inSession = true;
-    startTime = curr.t;
-  }
-
-  // Fin de sesión
-  if (inSession && prevOn && !currOn) {
-    const durH = (curr.t - startTime) / 3600000; // ms→h
-    if (durH >= 2) sessions.push(durH);
-    inSession = false;
-    startTime = null;
-  }
-}
-
-// Si quedó encendido al final del rango visible
-if (inSession && startTime) {
-  const durH = (visible[visible.length - 1].t - startTime) / 3600000;
-  if (durH >= 2) sessions.push(durH);
-}
-
-const hoursAvgRun = sessions.length
-  ? sessions.reduce((a, b) => a + b, 0) / sessions.length
-  : 0;
-
-$('photoHrsDay').textContent = hoursAvgRun.toFixed(1);
 
   // Pintar indicadores
   $('photoInicio').textContent   = visible[0].t.toLocaleString('es-CL');
   $('photoFin').textContent      = visible[visible.length - 1].t.toLocaleString('es-CL');
-  $('photoKWh').textContent = Math.round(kwh).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  $('photoAvg').textContent = avgPower.toFixed(1) + ' kW';
-$('photoMax').textContent = maxPower.toFixed(1) + ' kW';
-$('photoHrsUse').textContent = Math.round(hoursOn);
-   
+  $('photoKWh').textContent      = kwh.toFixed(1);
+  $('photoAvg').textContent      = avgPower.toFixed(1);
+  $('photoMax').textContent      = maxPower.toFixed(1);
+  $('photoHrsUse').textContent   = hoursOn.toFixed(1);         // SOLO horas encendido
+  $('photoHrsDay').textContent   = hoursPerDay.toFixed(1);     // promedio por día SOLO ON
   $('photoDaysOff').textContent  = String(daysOff);
-  $('photoDailyAvg').textContent = Math.round(dailyAvg) + ' kWh/día';
-
-  $('photoLitros').textContent = isFinite(litros)
-  ? Math.round(litros) + ' L'
-  : '—';
-
+  $('photoDailyAvg').textContent = dailyAvg.toFixed(1);
+  $('photoLitros').textContent   = isFinite(litros) ? litros.toFixed(1) : '—';
 }
 
 // Mezcla de colores (la misma que usas en Alimentación)
@@ -3013,83 +2824,6 @@ function mezclaRGB(cols) {
   avg[0]/=rgb.length; avg[1]/=rgb.length; avg[2]/=rgb.length;
   return `rgb(${avg.map(v=>Math.round(v)).join(',')})`;
 }
-
-// ==========================================================
-// 📸 Captura de pantalla completa en BMP (corrige inputs con onclone)
-// ==========================================================
-document.getElementById('btnCaptura').addEventListener('click', () => {
- // Intentar obtener el nombre del centro desde distintas fuentes
-let nombreCentro = 'Centro';
-const nombrePonton = document.getElementById('pontonesSelect')?.value || 'Ponton';
-
-// 1️⃣ Si hay un elemento que muestra el nombre del centro en pantalla
-const centroLabel = document.querySelector('#centroNombre, .centro-nombre, .titulo-centro, [data-centro]');
-if (centroLabel) {
-  nombreCentro = (centroLabel.textContent || centroLabel.value || '').trim() || 'Centro';
-}
-
-// 2️⃣ Si hay un input oculto o variable global
-if (window.centroActual && typeof window.centroActual === 'string') {
-  nombreCentro = window.centroActual.trim();
-}
-
-const nombreArchivo = `${nombreCentro}_${nombrePonton}.bmp`;
-
-
-  html2canvas(document.body, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#0b0f17',
-
-    // 🔹 Antes de renderizar, modificamos el DOM CLONADO (no el real)
-    onclone: (clonedDoc) => {
-      const win = clonedDoc.defaultView;
-
-      // Reemplazar inputs / selects por spans con el valor visible
-      clonedDoc.querySelectorAll('input, textarea, select').forEach((el) => {
-        const span = clonedDoc.createElement('span');
-
-        // Texto a mostrar
-        let txt = '';
-        if (el.tagName === 'SELECT') {
-          const opt = el.options[el.selectedIndex];
-          txt = (opt && (opt.text || opt.value)) || '';
-        } else {
-          txt = el.value || el.getAttribute('placeholder') || '';
-        }
-        span.textContent = txt;
-
-        // Copiar estilos básicos para que se vea igual
-        const cs = win.getComputedStyle(el);
-        span.style.display     = 'inline-block';
-        span.style.boxSizing   = 'border-box';
-        span.style.width       = cs.width;
-        span.style.height      = cs.height;
-        span.style.padding     = cs.padding;
-        span.style.border      = `${cs.borderTopWidth} solid ${cs.borderTopColor}`;
-        span.style.borderRadius= cs.borderRadius;
-        span.style.background  = cs.backgroundColor || '#0d1524';
-        span.style.color       = cs.color || '#e7eef7';
-        span.style.font        = cs.font;
-        span.style.lineHeight  = cs.lineHeight;
-        span.style.textAlign   = cs.textAlign || 'left';
-        span.style.whiteSpace  = 'nowrap';
-        span.style.overflow    = 'hidden';
-
-        el.parentNode.replaceChild(span, el);
-      });
-    },
-  }).then((canvas) => {
-    canvas.toBlob((blob) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = nombreArchivo;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }, 'image/bmp');
-  });
-});
-
 
 
 
