@@ -2360,87 +2360,93 @@ function drawHistograms() {
   ];
 
   labels.forEach((label, g) => {
-  const serie = energyByGen[label];
-  if (!serie?.length) return;
+    const serie = energyByGen[label];
+    if (!serie?.length) return;
 
-  // 🔹 Solo puntos con carga > 3 kW
-  const activos = serie.filter(p => p.y > 3);
-  if (!activos.length) return;
+    // 🔹 Solo puntos con carga > 3 kW
+    const activos = serie.filter(p => p.y > 3);
+    if (!activos.length) return;
 
-  const maxKW = gMax[g] * gFP[g];
-  const porcentajes = activos.map(p => Math.min(100, (p.y / maxKW) * 100));
+    const maxKW = gMax[g] * gFP[g];
+    const porcentajes = activos.map(p => Math.min(100, (p.y / maxKW) * 100));
 
-  const bins = Array(10).fill(0);
-  porcentajes.forEach(v => bins[Math.min(9, Math.floor(v / 10))]++);
-  const total = bins.reduce((a, b) => a + b, 0);
-  const freq = bins.map(v => (v / total) * 100);
+    // 🔹 BINS de 10 % a 90 %
+    const bins = Array(9).fill(0); // 10–20 … 90–100
 
-  // 🔹 Canvas adaptativo de alta resolución
-  const c = $("histG" + (g + 1));
-  const ctx = c.getContext("2d", { alpha: false });
-  const dpr = window.devicePixelRatio || 1;
-  const rect = c.getBoundingClientRect();
-
-  // Ajustar tamaño físico del canvas a su tamaño real en pantalla
-  c.width = rect.width * dpr;
-  c.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-
-  // Fondo sólido y nitidez extrema
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  ctx.fillStyle = "#0c121b";
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
-  // Dimensiones del área de dibujo
-  const w = rect.width;
-  const h = rect.height;
-  const pad = 40;
-  const barW = (w - pad * 2) / bins.length;
-  const maxY = Math.max(...freq) * 1.2;
-
-  // Eje X
-  ctx.strokeStyle = "#22314a";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad, h - pad);
-  ctx.lineTo(w - pad, h - pad);
-  ctx.stroke();
-
-  // 🔹 Barras
-  freq.forEach((p, i) => {
-    const barH = (p / maxY) * (h - pad * 2);
-    const x = pad + i * barW;
-    const y = h - pad - barH;
-    ctx.fillStyle = colors[g];
-    ctx.fillRect(x + barW * 0.1, y, barW * 0.8, barH);
-  });
-
-  // 🔹 Eje inferior (0–100%) con texto anti-pixelado y escalado perfecto
-  ctx.save();
-  ctx.fillStyle = "#9fb3c8";
-  ctx.textBaseline = "top";
-  ctx.textAlign = "center";
-  ctx.font = `${Math.max(10, rect.width / 95)}px 'Segoe UI', Roboto, system-ui`;
-  for (let i = 0; i <= 10; i++) {
-    const x = pad + i * barW;
-    ctx.fillText(i * 10 + "%", x + barW / 2, h - pad + 8);
-  }
-  ctx.restore();
-
-  // 🔹 Título del generador
-  ctx.save();
-  ctx.fillStyle = colors[g];
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  ctx.font = `bold ${Math.max(12, rect.width / 45)}px 'Segoe UI', Roboto, system-ui`;
-  ctx.fillText(label, w / 2, 18);
-  ctx.restore();
+    porcentajes.forEach(v => {
+      if (v >= 10 && v <= 100) {
+  const idx = Math.floor(v / 10) - 1;
+  if (idx >= 0 && idx < bins.length) bins[idx]++;
 }
 
-  
-  );
+    });
+
+    const total = bins.reduce((a, b) => a + b, 0);
+    const freq = total > 0 ? bins.map(v => (v / total) * 100) : bins;
+
+    // 🔹 Canvas adaptativo de alta resolución
+    const c = $("histG" + (g + 1));
+    const ctx = c.getContext("2d", { alpha: false });
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
+
+    c.width = rect.width * dpr;
+    c.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.fillStyle = "#0c121b";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // Dimensiones
+    const w = rect.width;
+    const h = rect.height;
+    const pad = 40;
+    const barW = (w - pad * 2) / bins.length;
+    const maxY = Math.max(...freq) * 1.2;
+
+    // Eje X
+    ctx.strokeStyle = "#22314a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad);
+    ctx.stroke();
+
+    // 🔹 Barras
+    freq.forEach((p, i) => {
+      const barH = (p / maxY) * (h - pad * 2);
+      const x = pad + i * barW;
+      const y = h - pad - barH;
+      ctx.fillStyle = colors[g];
+      ctx.fillRect(x + barW * 0.1, y, barW * 0.8, barH);
+    });
+
+    // 🔹 Etiquetas X (10–90 %)
+    ctx.save();
+    ctx.fillStyle = "#9fb3c8";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "center";
+    ctx.font = `${Math.max(10, rect.width / 95)}px 'Segoe UI', Roboto, system-ui`;
+    for (let i = 0; i <= 8; i++) { // <= 8 agrega la última etiqueta 90 %
+  const x = pad + i * barW;
+  const pct = (i + 1) * 10;
+  if (pct <= 90) ctx.fillText(`${pct}%`, x + barW / 2, h - pad + 8);
+}
+
+    ctx.restore();
+
+    // 🔹 Título
+    ctx.save();
+    ctx.fillStyle = colors[g];
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = `bold ${Math.max(12, rect.width / 45)}px 'Segoe UI', Roboto, system-ui`;
+    ctx.fillText(label, w / 2, 18);
+    ctx.restore();
+  });
 }
 
 
@@ -2473,19 +2479,22 @@ document.getElementById('genFile').addEventListener('change', function(e) {
 
       const kvaMatch = String(kvaRaw).match(/(\d+[.,]?\d*)/);
       const kva = kvaMatch ? Math.round(parseFloat(kvaMatch[1].replace(',', '.'))) : 0;
+      const select = document.getElementById('pontonesSelect');
 
       if (!pontones.has(ponton)) pontones.set(ponton, []);
       pontones.get(ponton).push({gen: genName.toUpperCase(), kva});
     });
+    // 🔹 Ordenar alfabéticamente los nombres de pontones antes de llenar el selector
+const sortedPontones = Array.from(pontones.keys()).sort((a, b) => a.localeCompare(b, 'es'));
 
     const select = document.getElementById('pontonesSelect');
     select.innerHTML = '<option value="">Seleccionar...</option>';
-    pontones.forEach((_, name) => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      select.appendChild(opt);
-    });
+    sortedPontones.forEach((name) => {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  select.appendChild(opt);
+});
 
     window.genPontonesData = pontones;
   };
@@ -2507,6 +2516,8 @@ document.getElementById('pontonesSelect').addEventListener('change', function() 
   document.getElementById('g1Max').value = g1 || 0;
   document.getElementById('g2Max').value = g2 || 0;
   document.getElementById('g3Max').value = g3 || 0;
+  drawHistograms();
+  render();
 });
 
 // ==========================================================
