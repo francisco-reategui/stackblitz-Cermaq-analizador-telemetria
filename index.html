@@ -528,11 +528,11 @@
     </tr>
     <tr>
       <th>🕒 Horas de uso totales</th><td id="photoHrsUse">—</td>
-      <th>⏳ Horas promedio por día</th><td id="photoHrsDay">—</td>
+      <th>⏳ Horas promedio por ciclo</th><td id="photoHrsDay">—</td>
     </tr>
     <tr>
       <th>📆 Días sin funcionamiento</th><td id="photoDaysOff">—</td>
-      <th>💡 Consumo diario promedio (kWh/día)</th><td id="photoDailyAvg">—</td>
+      <th>💡 Consumo promedio por ciclo (kWh/día)</th><td id="photoDailyAvg">—</td>
     </tr>
     <tr>
       <th>⛽ Consumo estimado (L)</th>
@@ -1538,12 +1538,14 @@ if (b.width !== b.clientWidth * bdpr) {
       // ---------- Interacción ----------
 
       function evtToCanvasXY(canvas, evt) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-          x: (evt.clientX - rect.left) * (canvas.width / rect.width),
-          y: (evt.clientY - rect.top) * (canvas.height / rect.height),
-        };
-      }
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  return {
+    x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+    y: (evt.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
       // Clic en el gráfico principal
       $('chart').addEventListener('click', (evt) => {
         const c = $('chart');
@@ -2727,16 +2729,15 @@ if (showOnOff) {
   updatePhotoIndicators(visible);
 }
 
-// Indicadores (corrigiendo: horas y promedios SOLO en ON)
+// Indicadores (corrigiendo: horas y promedios POR CICLO pero manteniendo nombres)
 function updatePhotoIndicators(visible) {
   if (!visible?.length) return;
 
   // Filtrado ON
   const on = visible.filter(p => p.y > PHOTO_ON_THRESHOLD);
 
-  // kWh (trapezoidal) — se calcula sobre toda la serie visible, pero
-  // si quieres sólo durante ON, cambia dataBase = on;
-  const dataBase = visible; // deja esto visible si deseas coherencia con Alimentación
+  // kWh (trapezoidal) — se calcula sobre toda la serie visible
+  const dataBase = visible;
   const kwh = (() => {
     let tot = 0;
     for (let i = 0; i < dataBase.length - 1; i++) {
@@ -2747,28 +2748,56 @@ function updatePhotoIndicators(visible) {
     }
     return tot;
   })();
-// Potencia promedio: SOLO mientras está encendido (>3 kW)
-const onData = visible.filter(p => p.y > PHOTO_ON_THRESHOLD);
-const avgPower = onData.length
-  ? onData.reduce((a, b) => a + b.y, 0) / onData.length
-  : 0;
+
+  // Potencia promedio: SOLO mientras está encendido (>3 kW)
+  const onData = visible.filter(p => p.y > PHOTO_ON_THRESHOLD);
+  const avgPower = onData.length
+    ? onData.reduce((a, b) => a + b.y, 0) / onData.length
+    : 0;
 
   const maxPower = Math.max(...dataBase.map(p => p.y));
 
-  // Horas totales SOLO cuando está ON: suma de intervalos consecutivos ON
-  let hoursOn = 0;
-  for (let i = 0; i < on.length - 1; i++) {
-    const dh = (on[i+1].t - on[i].t) / 3600000;
-    if (dh > 0) hoursOn += dh;
+  // --- NUEVO BLOQUE: cálculo por ciclo ---
+  let cycles = 0;
+  let totalCycleHours = 0;
+  let totalCycleKWh = 0;
+  let active = false;
+  let startT = null;
+
+  for (let i = 1; i < visible.length; i++) {
+    const prev = visible[i - 1];
+    const curr = visible[i];
+    const wasOn = prev.y > PHOTO_ON_THRESHOLD;
+    const isOn = curr.y > PHOTO_ON_THRESHOLD;
+
+    if (!wasOn && isOn) {
+      // Se enciende
+      active = true;
+      startT = curr.t;
+    }
+
+    if (active) {
+      const dh = (curr.t - prev.t) / 3600000;
+      const avgY = (prev.y + curr.y) / 2;
+      totalCycleKWh += avgY * dh;
+      totalCycleHours += dh;
+    }
+
+    if (wasOn && !isOn && active) {
+      // Se apaga → fin de ciclo
+      cycles++;
+      active = false;
+    }
   }
 
-  // Días con ON vs días totales
+  const hoursOn = totalCycleHours;
+  const hoursPerDay = cycles > 0 ? totalCycleHours / cycles : 0;   // reutiliza la variable existente
+  const dailyAvg = cycles > 0 ? totalCycleKWh / cycles : 0;        // reutiliza también
+
+  // Días con ON vs días totales (mantienes la métrica)
   const daysAll = new Set(visible.map(p => p.t.toISOString().slice(0,10))).size;
   const daysOn  = new Set(on.map(p => p.t.toISOString().slice(0,10))).size;
   const daysOff = Math.max(0, daysAll - daysOn);
-
-  const dailyAvg = daysOn > 0 ? kwh / daysOn : 0;
-  const hoursPerDay = daysOn > 0 ? hoursOn / daysOn : 0;
 
   // Consumo estimado (usa tu eficiencia global del panel principal)
   const effTxt = $('txtEff')?.textContent || '';
@@ -2785,7 +2814,6 @@ const avgPower = onData.length
         const t = on[i].t.getTime();
         labels.forEach((name, idx) => {
           const serie = energyByGen[name] || [];
-          // ventana de ±(dtH * 3) horas en ms
           const near = serie.find(p => Math.abs(p.t - t) < (dtH * 3) * 3600000);
           if (near && near.y > 5) gHours[idx] += Math.max(dtH, 0);
         });
@@ -2800,18 +2828,19 @@ const avgPower = onData.length
     }
   }
 
-  // Pintar indicadores
+  // --- Pintar indicadores ---
   $('photoInicio').textContent   = visible[0].t.toLocaleString('es-CL');
   $('photoFin').textContent      = visible[visible.length - 1].t.toLocaleString('es-CL');
   $('photoKWh').textContent      = kwh.toFixed(1);
   $('photoAvg').textContent      = avgPower.toFixed(1);
   $('photoMax').textContent      = maxPower.toFixed(1);
-  $('photoHrsUse').textContent   = hoursOn.toFixed(1);         // SOLO horas encendido
-  $('photoHrsDay').textContent   = hoursPerDay.toFixed(1);     // promedio por día SOLO ON
+  $('photoHrsUse').textContent   = hoursOn.toFixed(1);         // total ON
+  $('photoHrsDay').textContent   = hoursPerDay.toFixed(1);     // ⏳ horas promedio por ciclo (mantiene el ID)
   $('photoDaysOff').textContent  = String(daysOff);
-  $('photoDailyAvg').textContent = dailyAvg.toFixed(1);
+  $('photoDailyAvg').textContent = dailyAvg.toFixed(1);        // 💡 consumo promedio por ciclo (mantiene el ID)
   $('photoLitros').textContent   = isFinite(litros) ? litros.toFixed(1) : '—';
 }
+
 
 // Mezcla de colores (la misma que usas en Alimentación)
 function mezclaRGB(cols) {
