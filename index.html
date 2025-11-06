@@ -1538,12 +1538,14 @@ if (b.width !== b.clientWidth * bdpr) {
       // ---------- Interacción ----------
 
       function evtToCanvasXY(canvas, evt) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-          x: (evt.clientX - rect.left) * (canvas.width / rect.width),
-          y: (evt.clientY - rect.top) * (canvas.height / rect.height),
-        };
-      }
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  return {
+    x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+    y: (evt.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
       // Clic en el gráfico principal
       $('chart').addEventListener('click', (evt) => {
         const c = $('chart');
