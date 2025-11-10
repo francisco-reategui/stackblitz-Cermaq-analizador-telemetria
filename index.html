@@ -179,6 +179,10 @@
   <div style="display: flex; gap: 10px; align-items: center; flex: 0 0 auto;">
     <button id="btnRender" class="btn">Procesar y graficar</button>
     <button id="btnReset" class="btn ghost">Ver todo</button>
+    <button id="btnScreenshot" style="background:#162030; color:#9fb3c8; border:1px solid #22314a; border-radius:6px; padding:6px 12px; cursor:pointer; margin-left:8px;">
+      📸 Capturar pantalla
+    </button>
+    
     <span id="status" class="small"></span>
   </div>
 
@@ -559,6 +563,8 @@
   </tbody>
 </table>
 </div>
+<!-- Librería para capturar pantalla -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1676,6 +1682,27 @@ window.addEventListener("keydown", (e) => {
       // ---------- Cargar y render ----------
       $('btnRender').addEventListener('click', async () => {
         try {
+          // 🔹 LIMPIAR DATOS ANTES DE PROCESAR NUEVAS BASES
+          energyTotal = [];
+    energyByGen = {};
+    genKeys = [];
+    fuelLevel = [];
+    photoData = [];
+    feedingData = [];
+    viewStart = null;
+    viewEnd = null;
+    selectedIdx = null;
+    contextMenu = null;
+
+   // 🔹 Limpiar gráficos previos (canvas principal y secundarios)
+   ['chart', 'photoChart', 'feedingChart'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c) {
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
+      }
+    });
+
           $('status').textContent = 'Procesando...';
           const [aoaE, aoaF] = await Promise.all([
             $('fileEnergy').files[0]
@@ -2947,6 +2974,71 @@ function mezclaRGB(cols) {
   avg[0]/=rgb.length; avg[1]/=rgb.length; avg[2]/=rgb.length;
   return `rgb(${avg.map(v=>Math.round(v)).join(',')})`;
 }
+
+// =========================================================
+// 📸 BOTÓN DE CAPTURA DE PANTALLA (con mes real, centro y pontón)
+// =========================================================
+document.getElementById('btnScreenshot').addEventListener('click', async () => {
+  // 1️⃣ Agrandar inputs SOLO durante la captura (para que no se vean cortados)
+  const inputs = document.querySelectorAll('#g1Max, #g2Max, #g3Max, #g1FP, #g2FP, #g3FP');
+  const prevStyles = [];
+  inputs.forEach(inp => {
+    prevStyles.push(inp.style.cssText);
+    inp.style.height = '28px';
+    inp.style.lineHeight = '28px';
+    inp.style.padding = '2px 6px';
+  });
+
+  // 2️⃣ Obtener nombres de centro y pontón
+  const centro = document.getElementById('centrosSelect')?.value || 'CENTRO';
+  const ponton = document.getElementById('pontonesSelect')?.value || 'PONTON';
+
+  // 3️⃣ Detectar mes real desde el indicador de rango visible (txtInicio)
+  let fechaTexto = 'MES';
+  try {
+    const inicioTexto = document.getElementById('txtInicio')?.textContent?.trim();
+    if (inicioTexto) {
+      // Buscar fecha tipo DD-MM-YYYY en el texto
+      const match = inicioTexto.match(/(\d{2})-(\d{2})-(\d{4})/);
+      if (match) {
+        const [_, dd, mm, yyyy] = match;
+        // ✅ Sin UTC: usamos el mes real de Chile
+        const fecha = new Date(parseInt(yyyy), parseInt(mm) - 1, 1);
+        fechaTexto = fecha
+          .toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+          .toUpperCase();
+      } else {
+        // Si no tiene formato chileno, intentar parsear completo
+        const fecha = new Date(inicioTexto);
+        if (!isNaN(fecha)) {
+          fechaTexto = fecha
+            .toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+            .toUpperCase();
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ No se pudo determinar el mes real:', e);
+  }
+
+  // 4️⃣ Capturar toda la página con html2canvas
+  const canvas = await html2canvas(document.body, {
+    scale: 3, // alta resolución
+    backgroundColor: '#0b0f17',
+    useCORS: true
+  });
+
+  // 5️⃣ Restaurar estilos originales
+  inputs.forEach((inp, i) => {
+    inp.style.cssText = prevStyles[i];
+  });
+
+  // 6️⃣ Guardar con nombre dinámico limpio
+  const link = document.createElement('a');
+  link.download = `${centro.replace(/\s+/g, '_')}_${ponton.replace(/\s+/g, '_')}_${fechaTexto}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
 
 
 
