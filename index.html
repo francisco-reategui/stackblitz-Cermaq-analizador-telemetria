@@ -563,6 +563,11 @@
   </tbody>
 </table>
 </div>
+
+
+
+
+
 <!-- Librería para capturar pantalla -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
@@ -2200,8 +2205,7 @@ function updateGenIndicators() {
   }
 }
 
-
-// 🔹 Calcular indicadores del sistema de alimentación
+// 🔹 Calcular indicadores del sistema de alimentación (VERSIÓN CORREGIDA: ZONA HORARIA LOCAL)
 function updateFeedIndicators(series, t0, t1) {
   const visible = series.filter(p => p.t >= t0 && p.t <= t1);
   if (!visible.length) return;
@@ -2222,20 +2226,34 @@ function updateFeedIndicators(series, t0, t1) {
   const durHrs = (visible[visible.length - 1].t - visible[0].t) / 3600000;
   const durDays = durHrs / 24;
 
-  // 🔹 Detección de días activos
+  // --- INICIO DE LA CORRECCIÓN DE ZONA HORARIA ---
+  // 🔹 Detección de días activos (Agrupando por fecha local CLT, no UTC)
   const mapDays = {};
   for (const p of visible) {
-    const key = p.t.toISOString().split("T")[0];
+    // const key = p.t.toISOString().split("T")[0]; // ANTERIOR: Agrupaba por UTC
+    
+    // NUEVO: Construir la clave de fecha usando la zona local del navegador
+    const y = p.t.getFullYear();
+    const m = p.t.getMonth() + 1; // getMonth() es 0-11
+    const d = p.t.getDate();
+    const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    
     mapDays[key] = mapDays[key] || [];
     mapDays[key].push(p.y);
   }
+  // --- FIN DE LA CORRECCIÓN DE ZONA HORARIA ---
 
   const days = Object.keys(mapDays);
-  let activeDays = 0, inactiveDays = 0, hoursUseTotal = 0, dailyKwh = [];
+  let activeDays = 0, 
+      inactiveDays = 0, 
+      hoursUseTotal = 0, 
+      dailyKwh = [];
+      
+  let inactiveDaysList = []; // Array para guardar las fechas
 
   for (const d of days) {
     const points = mapDays[d];
-    const activePts = points.filter(v => v > 1);
+    const activePts = points.filter(v => v > 1); // > 1 kW
     if (activePts.length) {
       activeDays++;
       // calcular horas de uso del día
@@ -2253,6 +2271,7 @@ function updateFeedIndicators(series, t0, t1) {
       dailyKwh.push(kwhDay);
     } else {
       inactiveDays++;
+      inactiveDaysList.push(d); // Guardar la fecha inactiva
     }
   }
 
@@ -2275,56 +2294,71 @@ function updateFeedIndicators(series, t0, t1) {
   $("feedHrsUse").textContent = Math.round(hoursUseTotal);
 
   $("feedHrsDay").textContent = hrsDayAvg.toFixed(1);
-  $("feedDaysOff").textContent = inactiveDays.toString();
+  
+  // Modificar cómo se muestra "feedDaysOff"
+  const feedDaysOffEl = $("feedDaysOff");
+  if (feedDaysOffEl) {
+    // Formato simple (DD/MM) para las fechas
+    const formattedDates = inactiveDaysList.map(dateStr => {
+        const parts = dateStr.split('-'); // [YYYY, MM, DD]
+        return `${parts[2]}/${parts[1]}`; // Devuelve DD/MM
+    }).join(', ');
+
+    // Se inyecta HTML en el <td>
+    feedDaysOffEl.innerHTML = `
+      ${inactiveDays}
+      ${inactiveDaysList.length > 0 
+        ? `<div class="small" style="color:#ffd166; margin-top:4px; font-weight:normal;">(${formattedDates})</div>` 
+        : ''}
+    `;
+  }
+  
   $("feedDailyAvg").textContent = Math.round(dailyAvgKwh).toLocaleString("es-CL");
+  
   // 🔹 Conversión a litros usando eficiencia general (kWh/L) del panel principal
-const effText = document.getElementById("txtEff")?.textContent || "";
-const eff = parseFloat(effText.replace(",", ".")); // eficiencia actual en kWh/L
+  const effText = document.getElementById("txtEff")?.textContent || "";
+  const eff = parseFloat(effText.replace(",", ".")); // eficiencia actual en kWh/L
 
-let litrosConsumidos = "—";
-if (isFinite(eff) && eff > 0) {
-  litrosConsumidos = (kwh / eff).toFixed(1); // energía utilizada / eficiencia global
-}
+  let litrosConsumidos = "—";
+  if (isFinite(eff) && eff > 0) {
+    litrosConsumidos = (kwh / eff).toFixed(1); // energía utilizada / eficiencia global
+  }
 
-document.getElementById("feedLitros").textContent = litrosConsumidos;
+  document.getElementById("feedLitros").textContent = litrosConsumidos;
 
 
   $("feedMax").textContent = `${maxVal.toFixed(1)} kW`;
  
   // 🔹 Calcular horas y porcentajes de uso del sistema de alimentación por generador
-if (energyByGen && Object.keys(energyByGen).length && genKeys.length) {
-  const labels = genKeys; // Generadores detectados (máx 3)
-  const totalFeedHrs = Math.round(hoursUseTotal);
-  const feedActive = visible.filter(p => p.y > 1); // sistema encendido
+  if (energyByGen && Object.keys(energyByGen).length && genKeys.length) {
+    const labels = genKeys; // Generadores detectados (máx 3)
+    const totalFeedHrs = Math.round(hoursUseTotal);
+    const feedActive = visible.filter(p => p.y > 1); // sistema encendido
 
-  let gHours = new Array(labels.length).fill(0);
+    let gHours = new Array(labels.length).fill(0);
 
-  if (feedActive.length > 1) {
-    const dt = (feedActive[1].t - feedActive[0].t) / 3600000; // intervalo medio en horas
+    if (feedActive.length > 1) {
+      const dt = (feedActive[1].t - feedActive[0].t) / 3600000; // intervalo medio en horas
 
-    for (let i = 0; i < feedActive.length; i++) {
-      const t = feedActive[i].t.getTime();
+      for (let i = 0; i < feedActive.length; i++) {
+        const t = feedActive[i].t.getTime();
+        labels.forEach((name, idx) => {
+          const serie = energyByGen[name] || [];
+          const near = serie.find(p => Math.abs(p.t - t) < dt * 3600000);
+          if (near && near.y > 5) gHours[idx] += dt;
+        });
+      }
+
+      const totalGenHrs = gHours.reduce((a, b) => a + b, 0);
       labels.forEach((name, idx) => {
-        const serie = energyByGen[name] || [];
-        const near = serie.find(p => Math.abs(p.t - t) < dt * 3600000);
-        if (near && near.y > 5) gHours[idx] += dt;
+        const hrs = gHours[idx];
+        const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
+        $(`feedG${idx + 1}hrs`).textContent = `${Math.round(hrs)} h`;
+        $(`feedG${idx + 1}pct`).textContent = `${pct.toFixed(1)} %`;
       });
     }
-
-    const totalGenHrs = gHours.reduce((a, b) => a + b, 0);
-    labels.forEach((name, idx) => {
-      const hrs = gHours[idx];
-      const pct = totalGenHrs > 0 ? (hrs / totalGenHrs) * 100 : 0;
-      $(`feedG${idx + 1}hrs`).textContent = `${Math.round(hrs)} h`;
-      $(`feedG${idx + 1}pct`).textContent = `${pct.toFixed(1)} %`;
-    });
   }
 }
-
-
-
-}
-
 
 // Evento del botón
 $("btnFeed").addEventListener("click", async () => {
